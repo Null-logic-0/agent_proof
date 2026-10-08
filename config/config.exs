@@ -14,6 +14,9 @@ config :agent_proof,
 # PayPal adapter (see AgentProof.PayPal). Demo needs no network or credentials.
 config :agent_proof, :paypal_adapter, AgentProof.PayPal.Demo
 
+# AI provider (see AgentProof.AI). Demo needs no model.
+config :agent_proof, :ai_provider, AgentProof.AI.Demo
+
 # Configure the endpoint
 config :agent_proof, AgentProofWeb.Endpoint,
   url: [host: "localhost"],
