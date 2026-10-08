@@ -55,7 +55,7 @@ end
 if config_env() == :dev do
   config :agent_proof, AgentProof.AI.Ollama,
     base_url: System.get_env("OLLAMA_URL", "http://localhost:11434"),
-    model: System.get_env("OLLAMA_MODEL", "gemma3:4b")
+    model: System.get_env("OLLAMA_MODEL", "llama3.2")
 end
 
 if config_env() == :prod do

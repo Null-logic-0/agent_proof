@@ -9,7 +9,7 @@ defmodule AgentProof.AI.Ollama do
   Configuration (`config :agent_proof, AgentProof.AI.Ollama`):
 
     * `:base_url` - the Ollama server, e.g. "http://localhost:11434"
-    * `:model` - a pulled model, e.g. "gemma3:4b"
+    * `:model` - a pulled model, e.g. "llama3.2"
     * `:req_options` - extra `Req` options, applied last (tests use `Req.Test`)
 
   Errors are normalized to `{:ollama, status, message}`, `{:transport, reason}`,
