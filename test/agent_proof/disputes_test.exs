@@ -42,15 +42,85 @@ defmodule AgentProof.DisputesTest do
     assert Disputes.get_dispute!(dispute.id) == dispute
   end
 
-  test "the full case chain preloads from a dispute",
-       %{agent: agent, transaction: transaction} do
-    dispute = dispute_fixture(transaction)
-    package = evidence_fixture(dispute)
+  describe "open_dispute/3" do
+    test "opens a dispute with system-set id, status, and due date",
+         %{transaction: transaction} do
+      assert {:ok, %Dispute{} = dispute} =
+               Disputes.open_dispute(transaction, %{reason: :unauthorized}, today: ~D[2026-10-08])
 
-    loaded = Repo.preload(dispute, [:evidence, transaction: [authorization: :agent]])
+      assert dispute.transaction_id == transaction.id
+      assert dispute.reason == :unauthorized
+      assert dispute.status == :open
+      assert dispute.paypal_dispute_id == "DEMO-PP-D-#{transaction.id}"
+      assert dispute.due_date == ~D[2026-10-18]
+    end
 
-    assert loaded.evidence.id == package.id
-    assert loaded.transaction.id == transaction.id
-    assert loaded.transaction.authorization.agent.id == agent.id
+    test "accepts string-key params from a form", %{transaction: transaction} do
+      assert {:ok, %Dispute{reason: :not_received}} =
+               Disputes.open_dispute(transaction, %{"reason" => "not_received"})
+    end
+
+    test "ignores status, PayPal id, and due date from input", %{transaction: transaction} do
+      {:ok, dispute} =
+        Disputes.open_dispute(
+          transaction,
+          %{
+            reason: :other,
+            status: :submitted,
+            paypal_dispute_id: "PP-D-FAKE",
+            due_date: ~D[2030-01-01]
+          },
+          today: ~D[2026-10-08]
+        )
+
+      assert dispute.status == :open
+      assert dispute.paypal_dispute_id == "DEMO-PP-D-#{transaction.id}"
+      assert dispute.due_date == ~D[2026-10-18]
+    end
+
+    test "requires a known reason", %{transaction: transaction} do
+      assert {:error, changeset} = Disputes.open_dispute(transaction, %{})
+      assert "can't be blank" in errors_on(changeset).reason
+
+      assert {:error, changeset} = Disputes.open_dispute(transaction, %{reason: "chargeback"})
+      assert "is invalid" in errors_on(changeset).reason
+    end
+
+    test "only paid transactions can be disputed", %{agent: agent} do
+      authorization = authorization_fixture(agent)
+
+      for status <- [:created, :failed] do
+        transaction = transaction_fixture(authorization, %{status: status})
+
+        assert Disputes.open_dispute(transaction, %{reason: :unauthorized}) ==
+                 {:error, :not_disputable}
+      end
+    end
+
+    test "a transaction can only be disputed once", %{transaction: transaction} do
+      assert {:ok, _} = Disputes.open_dispute(transaction, %{reason: :unauthorized})
+      assert {:error, changeset} = Disputes.open_dispute(transaction, %{reason: :other})
+      assert "has already been taken" in errors_on(changeset).transaction_id
+    end
+  end
+
+  describe "get_case!/1" do
+    test "loads the dispute with its whole chain and evidence",
+         %{agent: agent, transaction: transaction} do
+      {:ok, dispute} = Disputes.open_dispute(transaction, %{reason: :unauthorized})
+      package = evidence_fixture(dispute)
+
+      loaded = Disputes.get_case!(dispute.id)
+
+      assert loaded.evidence.id == package.id
+      assert loaded.transaction.id == transaction.id
+      assert loaded.transaction.authorization.agent.id == agent.id
+    end
+
+    test "evidence is nil before an investigation", %{transaction: transaction} do
+      {:ok, dispute} = Disputes.open_dispute(transaction, %{reason: :unauthorized})
+
+      assert Disputes.get_case!(dispute.id).evidence == nil
+    end
   end
 end

@@ -22,4 +22,17 @@ defmodule AgentProof.Disputes.Dispute do
     |> assoc_constraint(:transaction)
     |> unique_constraint(:transaction_id)
   end
+
+  @doc """
+  Changeset for a customer opening a dispute. Only `reason` comes from input;
+  status, PayPal dispute id, and due date are set by
+  `AgentProof.Disputes.open_dispute/3`.
+  """
+  def open_changeset(dispute, attrs) do
+    dispute
+    |> cast(attrs, [:reason])
+    |> validate_required([:reason])
+    |> assoc_constraint(:transaction)
+    |> unique_constraint(:transaction_id)
+  end
 end
