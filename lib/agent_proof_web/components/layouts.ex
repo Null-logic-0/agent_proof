@@ -53,12 +53,13 @@ defmodule AgentProofWeb.Layouts do
       <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
         <.mode_badge id="paypal-mode" label="PayPal" value={@paypal_adapter} />
         <.mode_badge id="ai-provider" label="AI" value={@ai_provider} />
+
         <.theme_toggle />
       </div>
     </header>
 
     <main class="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      <div class="mx-auto max-w-6xl">
+      <div class="mx-auto max-w-7xl">
         {render_slot(@inner_block)}
       </div>
     </main>

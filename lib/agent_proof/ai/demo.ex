@@ -50,13 +50,21 @@ defmodule AgentProof.AI.Demo do
       "statement" =>
         "The customer authorized #{agent} to spend up to #{authorization["max_amount"]} " <>
           ~s(#{authorization["currency"]}: "#{authorization["description"]}".),
-      "facts" => [
-        "Authorization recorded at #{authorization["authorized_at"]}.",
-        budget_fact(checks),
-        currency_fact(checks)
-      ]
+      "facts" =>
+        [
+          "Authorization recorded at #{authorization["authorized_at"]}.",
+          budget_fact(checks),
+          currency_fact(checks)
+        ] ++ edited_facts(authorization)
     }
   end
+
+  defp edited_facts(%{"edited_after_purchase" => true}),
+    do: [
+      "The authorization was edited after this purchase; the terms above are those in force when it was made."
+    ]
+
+  defp edited_facts(_authorization), do: []
 
   defp budget_fact(%{"within_budget" => true, "system_budget_check_logged" => true}),
     do: "AgentProof's own budget check approved the amount before payment."

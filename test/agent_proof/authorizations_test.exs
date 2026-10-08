@@ -161,6 +161,62 @@ defmodule AgentProof.AuthorizationsTest do
     assert "must be less than 10000000000" in errors_on(changeset).max_amount
   end
 
+  describe "update_settings/2" do
+    setup do
+      authorization = authorization_fixture(agent_fixture()) |> Authorizations.preload_activity()
+      %{authorization: authorization}
+    end
+
+    test "updates the agent's name and the authorization's limit and description together",
+         %{authorization: authorization} do
+      assert {:ok, updated} =
+               Authorizations.update_settings(authorization, %{
+                 "agent_name" => "ShopBot Pro",
+                 "max_amount" => "500",
+                 "description" => "Any audio gear up to $500"
+               })
+
+      assert updated.agent.name == "ShopBot Pro"
+      assert Decimal.equal?(updated.max_amount, "500")
+      assert updated.description == "Any audio gear up to $500"
+      assert updated.currency == "USD"
+    end
+
+    test "is allowed after purchases", %{authorization: authorization} do
+      transaction_fixture(authorization)
+
+      assert {:ok, updated} =
+               Authorizations.update_settings(authorization, %{"max_amount" => "300"})
+
+      assert Decimal.equal?(updated.max_amount, "300")
+    end
+
+    test "invalid input changes nothing", %{authorization: authorization} do
+      assert {:error, changeset} =
+               Authorizations.update_settings(authorization, %{
+                 "agent_name" => "",
+                 "max_amount" => "0"
+               })
+
+      assert "can't be blank" in errors_on(changeset).agent_name
+      assert "must be greater than 0" in errors_on(changeset).max_amount
+
+      reloaded =
+        authorization.id
+        |> Authorizations.get_authorization!()
+        |> Authorizations.preload_activity()
+
+      assert reloaded.agent.name == "ShopBot"
+      assert Decimal.equal?(reloaded.max_amount, "200.00")
+    end
+
+    test "the currency cannot be changed", %{authorization: authorization} do
+      {:ok, updated} = Authorizations.update_settings(authorization, %{"currency" => "EUR"})
+
+      assert updated.currency == "USD"
+    end
+  end
+
   describe "delete_agent/1" do
     test "deletes an unused agent together with its authorizations" do
       agent = agent_fixture()

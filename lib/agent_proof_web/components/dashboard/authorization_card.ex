@@ -1,8 +1,9 @@
 defmodule AgentProofWeb.AuthorizationCard do
   use AgentProofWeb, :html
 
+  import AgentProofWeb.ShopForm
   import AgentProofWeb.SpendingMeter
-  import AgentProofWeb.StatusBadge
+  import AgentProofWeb.TransactionList
 
   attr :id, :string, required: true
   attr :card, :map, required: true
@@ -27,6 +28,16 @@ defmodule AgentProofWeb.AuthorizationCard do
             <span class="text-xs text-base-content/50">
               Authorized {Calendar.strftime(@card.authorization.inserted_at, "%b %-d, %H:%M")}
             </span>
+            <button
+              type="button"
+              id={"edit-agent-#{@card.id}"}
+              class="btn btn-ghost btn-sm btn-square"
+              phx-click="edit_agent"
+              phx-value-id={@card.id}
+              aria-label={"Edit #{@card.authorization.agent.name}"}
+            >
+              <.icon name="hero-pencil-square" class="size-4" />
+            </button>
             <button
               :if={@card.authorization.transactions == []}
               type="button"
@@ -59,48 +70,9 @@ defmodule AgentProofWeb.AuthorizationCard do
           currency={@card.authorization.currency}
         />
 
-        <.form
-          for={@shop_form}
-          id={"shop-form-#{@card.id}"}
-          phx-submit="shop"
-          class="flex flex-col gap-2 sm:flex-row sm:items-start"
-        >
-          <input type="hidden" name="authorization_id" value={@card.id} />
-          <div class="min-w-0 flex-1">
-            <.input
-              field={@shop_form[:query]}
-              id={"shop-query-#{@card.id}"}
-              placeholder="What should the agent look for?"
-            />
-          </div>
-          <.button class="btn btn-primary shrink-0 sm:mt-1" phx-disable-with="Shopping…">
-            <.icon name="hero-sparkles" class="size-4" /> Let the agent shop
-          </.button>
-        </.form>
+        <.shop_form form={@shop_form} authorization_id={@card.id} />
 
-        <ul
-          :if={@card.authorization.transactions != []}
-          class="divide-y divide-base-200 border-t border-base-200"
-        >
-          <li
-            :for={transaction <- @card.authorization.transactions}
-            id={"transaction-#{transaction.id}"}
-            class="flex flex-col gap-1.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3"
-          >
-            <div class="min-w-0">
-              <p class="font-medium sm:truncate">{transaction.product_name}</p>
-              <p class="truncate font-mono text-xs text-base-content/50">
-                {transaction.paypal_order_id || "no PayPal order"}
-              </p>
-            </div>
-            <div class="flex shrink-0 items-center gap-3">
-              <span class="font-medium tabular-nums">
-                {money(transaction.amount)} {transaction.currency}
-              </span>
-              <.status_badge status={transaction.status} />
-            </div>
-          </li>
-        </ul>
+        <.transaction_list transactions={@card.authorization.transactions} />
       </div>
     </article>
     """

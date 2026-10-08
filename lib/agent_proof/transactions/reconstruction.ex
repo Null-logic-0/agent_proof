@@ -4,6 +4,8 @@ defmodule AgentProof.Transactions.Reconstruction do
 
   Pure: it works only on preloaded structs, with no database and no AI. The
   `"checks"` are computed here, by code, so no model ever decides them. The
+  authorization's limit and description are the ones recorded at purchase
+  time, so editing the authorization later never rewrites the evidence. The
   output shape is documented in `AgentProof.AI.Provider`.
   """
 
@@ -19,14 +21,16 @@ defmodule AgentProof.Transactions.Reconstruction do
       ) do
     budget_check = find_action(transaction, :budget_check)
     capture = find_action(transaction, :capture_payment)
+    terms = terms_at_purchase(budget_check, authorization)
 
     %{
       "agent_name" => agent.name,
       "authorization" => %{
-        "max_amount" => money(authorization.max_amount),
+        "max_amount" => terms.max_amount,
         "currency" => authorization.currency,
-        "description" => authorization.description,
-        "authorized_at" => DateTime.to_iso8601(authorization.inserted_at)
+        "description" => terms.description,
+        "authorized_at" => DateTime.to_iso8601(authorization.inserted_at),
+        "edited_after_purchase" => terms.edited?
       },
       "transaction" => %{
         "product_name" => transaction.product_name,
@@ -54,6 +58,30 @@ defmodule AgentProof.Transactions.Reconstruction do
       },
       "agent_actions" => Enum.map(transaction.agent_actions, &action/1)
     }
+  end
+
+  # The limit and description in force when the purchase was checked, as the
+  # system recorded them. Older purchases without a recorded description, or
+  # none at all, fall back to the current terms.
+  defp terms_at_purchase(budget_check, authorization) do
+    current = %{
+      max_amount: money(authorization.max_amount),
+      description: authorization.description
+    }
+
+    recorded =
+      case budget_check do
+        %{details: details} ->
+          %{
+            max_amount: details["max_amount"] || current.max_amount,
+            description: details["description"] || current.description
+          }
+
+        nil ->
+          current
+      end
+
+    Map.put(recorded, :edited?, recorded != current)
   end
 
   defp find_action(transaction, name),

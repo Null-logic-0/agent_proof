@@ -81,6 +81,59 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
+  Changeset for editing an authorized agent: its name, spending limit, and
+  description. The currency is fixed. `authorization` must have its agent
+  preloaded. Errors come from the real `Agent` and `Authorization` changesets.
+  """
+  def change_settings(%Authorization{agent: %Agent{} = agent} = authorization, attrs \\ %{}) do
+    data = %{
+      agent_name: agent.name,
+      max_amount: authorization.max_amount,
+      currency: authorization.currency,
+      description: authorization.description
+    }
+
+    settings =
+      Ecto.Changeset.cast({data, @grant_types}, attrs, [:agent_name, :max_amount, :description])
+
+    params = Ecto.Changeset.apply_changes(settings)
+
+    settings
+    |> copy_errors(Agent.changeset(agent, %{name: params.agent_name}), name: :agent_name)
+    |> copy_errors(
+      Authorization.changeset(authorization, Map.take(params, [:max_amount, :description])),
+      []
+    )
+  end
+
+  @doc """
+  Updates an agent's name and its authorization's limit and description
+  atomically. Allowed after purchases: each purchase recorded the limit and
+  description it was checked against, so its evidence keeps those terms.
+  Returns the authorization with fresh activity preloaded.
+  """
+  def update_settings(%Authorization{agent: %Agent{} = agent} = authorization, attrs) do
+    changeset = change_settings(authorization, attrs)
+
+    if changeset.valid? do
+      settings = Ecto.Changeset.apply_changes(changeset)
+
+      Repo.transact(fn ->
+        with {:ok, _agent} <-
+               agent |> Agent.changeset(%{name: settings.agent_name}) |> Repo.update(),
+             {:ok, authorization} <-
+               authorization
+               |> Authorization.changeset(Map.take(settings, [:max_amount, :description]))
+               |> Repo.update() do
+          {:ok, authorization.id |> get_authorization!() |> preload_activity()}
+        end
+      end)
+    else
+      {:error, %{changeset | action: :update}}
+    end
+  end
+
+  @doc """
   Deletes an agent and its authorizations, but only if none of them has any
   transaction: purchase records are dispute evidence and are always kept.
 

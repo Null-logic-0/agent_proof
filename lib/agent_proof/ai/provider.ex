@@ -12,7 +12,8 @@ defmodule AgentProof.AI.Provider do
         "agent_name" => "ShopBot",
         "authorization" => %{
           "max_amount" => "200.00", "currency" => "USD",
-          "description" => "Headphones up to $200", "authorized_at" => "2026-10-08T12:00:00Z"
+          "description" => "Headphones up to $200", "authorized_at" => "2026-10-08T12:00:00Z",
+          "edited_after_purchase" => false
         },
         "transaction" => %{
           "product_name" => "Sony WH-1000XM5 Headphones", "amount" => "189.99",
@@ -39,7 +40,9 @@ defmodule AgentProof.AI.Provider do
         ]
       }
 
-  `"fulfillment"` and `"delivered_before_dispute"` are `nil` when nothing was
+  The authorization's `"max_amount"` and `"description"` are the terms in force
+  at purchase time; `"edited_after_purchase"` says whether they were changed
+  since. `"fulfillment"` and `"delivered_before_dispute"` are `nil` when nothing was
   delivered; `"capture_simulated"` is `nil` when no capture was recorded.
   `"checks"` are computed by AgentProof (see
   `AgentProof.Transactions.reconstruct/2`), never by a model.

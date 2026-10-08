@@ -3,7 +3,7 @@ defmodule AgentProof.Transactions.ReconstructionTest do
 
   import AgentProof.Fixtures
 
-  alias AgentProof.{Disputes, Transactions}
+  alias AgentProof.{Authorizations, Disputes, Transactions}
 
   defp facts(dispute), do: Transactions.reconstruct(dispute.transaction, dispute)
 
@@ -57,6 +57,28 @@ defmodule AgentProof.Transactions.ReconstructionTest do
     facts = facts(disputed_case_fixture())
 
     assert facts |> Jason.encode!() |> Jason.decode!() == facts
+  end
+
+  test "editing the authorization later does not rewrite the purchase's terms" do
+    dispute = disputed_case_fixture()
+
+    assert facts(dispute)["authorization"]["edited_after_purchase"] == false
+
+    authorization = Authorizations.preload_activity(dispute.transaction.authorization)
+
+    {:ok, _} =
+      Authorizations.update_settings(authorization, %{
+        "max_amount" => "5000",
+        "description" => "Anything at all"
+      })
+
+    reloaded = Disputes.get_case!(dispute.id)
+
+    assert %{
+             "max_amount" => "200.00",
+             "description" => "Buy noise-cancelling headphones, up to $200",
+             "edited_after_purchase" => true
+           } = facts(reloaded)["authorization"]
   end
 
   test "no fulfillment is reported as missing, not guessed" do

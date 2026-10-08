@@ -79,6 +79,14 @@ defmodule AgentProof.AITest do
              ]["facts"]
     end
 
+    test "discloses when the authorization was edited after the purchase" do
+      edited = put_in(@facts, ["authorization", "edited_after_purchase"], true)
+      edited_fact = ~r/edited after this purchase/
+
+      assert Enum.any?(demo(edited)["authorization_evidence"]["facts"], &(&1 =~ edited_fact))
+      refute Enum.any?(demo()["authorization_evidence"]["facts"], &(&1 =~ edited_fact))
+    end
+
     test "says so when nothing was delivered" do
       assert demo(%{@facts | "fulfillment" => nil})["fulfillment_evidence"] == %{
                "statement" => "No fulfillment record exists for this transaction.",

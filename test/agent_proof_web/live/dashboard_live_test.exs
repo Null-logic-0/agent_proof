@@ -44,6 +44,60 @@ defmodule AgentProofWeb.DashboardLiveTest do
     end
   end
 
+  describe "editing a bot" do
+    setup do
+      %{authorization: authorization_fixture(agent_fixture())}
+    end
+
+    test "the edit button opens a prefilled modal", %{conn: conn, authorization: authorization} do
+      {:ok, view, _html} = live(conn, ~p"/")
+      refute has_element?(view, "#edit-agent-modal")
+
+      view |> element("#edit-agent-#{authorization.id}") |> render_click()
+
+      assert has_element?(view, "#edit-agent-form #settings_agent_name[value='ShopBot']")
+      assert has_element?(view, "#edit-agent-spent", "0.00")
+    end
+
+    test "saving updates the card and closes the modal",
+         %{conn: conn, authorization: authorization} do
+      {:ok, view, _html} = live(conn, ~p"/")
+      view |> element("#edit-agent-#{authorization.id}") |> render_click()
+
+      view
+      |> form("#edit-agent-form",
+        settings: %{agent_name: "ShopBot Pro", max_amount: "500", description: "Audio gear"}
+      )
+      |> render_submit()
+
+      refute has_element?(view, "#edit-agent-modal")
+      assert has_element?(view, "#authorizations-#{authorization.id}", "ShopBot Pro")
+      assert has_element?(view, "#meter-#{authorization.id}", "500.00")
+      assert has_element?(view, "#flash-info", "Updated ShopBot Pro.")
+    end
+
+    test "invalid input keeps the modal open with errors",
+         %{conn: conn, authorization: authorization} do
+      {:ok, view, _html} = live(conn, ~p"/")
+      view |> element("#edit-agent-#{authorization.id}") |> render_click()
+
+      html = view |> form("#edit-agent-form", settings: %{max_amount: "0"}) |> render_change()
+
+      assert html =~ "must be greater than 0"
+      assert has_element?(view, "#edit-agent-modal")
+    end
+
+    test "cancel closes the modal without changes", %{conn: conn, authorization: authorization} do
+      {:ok, view, _html} = live(conn, ~p"/")
+      view |> element("#edit-agent-#{authorization.id}") |> render_click()
+
+      view |> element("#edit-agent-cancel") |> render_click()
+
+      refute has_element?(view, "#edit-agent-modal")
+      assert has_element?(view, "#authorizations-#{authorization.id}", "ShopBot")
+    end
+  end
+
   describe "deleting a bot" do
     test "an unused bot can be deleted and its card disappears", %{conn: conn} do
       authorization = authorization_fixture(agent_fixture())

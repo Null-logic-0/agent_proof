@@ -140,7 +140,8 @@ defmodule AgentProof.TransactionsTest do
                "spent" => "0.00",
                "amount" => "189.99",
                "max_amount" => "200.00",
-               "currency" => "USD"
+               "currency" => "USD",
+               "description" => "Buy noise-cancelling headphones, up to $200"
              }
     end
 

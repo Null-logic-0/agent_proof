@@ -84,7 +84,10 @@ defmodule AgentProof.Transactions do
             "spent" => money(spent),
             "amount" => money(price),
             "max_amount" => money(authorization.max_amount),
-            "currency" => currency
+            "currency" => currency,
+            # The terms this purchase was checked against, kept even if the
+            # authorization is edited later.
+            "description" => authorization.description
           })
 
         %Transaction{authorization_id: authorization.id}

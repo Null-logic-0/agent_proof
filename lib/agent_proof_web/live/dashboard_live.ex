@@ -2,6 +2,7 @@ defmodule AgentProofWeb.DashboardLive do
   use AgentProofWeb, :live_view
 
   import AgentProofWeb.AuthorizationCard
+  import AgentProofWeb.EditAgentModal
   import AgentProofWeb.GrantForm
 
   alias AgentProof.{Authorizations, Transactions}
@@ -22,6 +23,7 @@ defmodule AgentProofWeb.DashboardLive do
      |> assign(:page_title, "AgentProof")
      |> assign(:form, build_grant_form(@grant_defaults))
      |> assign(:shop_form, to_form(%{"query" => "headphones"}, as: :shop))
+     |> assign(editing: nil, edit_form: nil)
      |> stream(:authorizations, Enum.map(Authorizations.list_authorizations(), &card/1))}
   end
 
@@ -73,6 +75,44 @@ defmodule AgentProofWeb.DashboardLive do
     end
   end
 
+  def handle_event("edit_agent", %{"id" => id}, socket) do
+    card =
+      id |> Authorizations.get_authorization!() |> Authorizations.preload_activity() |> card()
+
+    {:noreply,
+     assign(socket,
+       editing: card,
+       edit_form: card.authorization |> Authorizations.change_settings() |> to_form(as: :settings)
+     )}
+  end
+
+  def handle_event("validate_edit", %{"settings" => params}, socket) do
+    form =
+      socket.assigns.editing.authorization
+      |> Authorizations.change_settings(params)
+      |> to_form(action: :validate, as: :settings)
+
+    {:noreply, assign(socket, :edit_form, form)}
+  end
+
+  def handle_event("save_edit", %{"settings" => params}, socket) do
+    case Authorizations.update_settings(socket.assigns.editing.authorization, params) do
+      {:ok, authorization} ->
+        {:noreply,
+         socket
+         |> assign(editing: nil, edit_form: nil)
+         |> stream_insert(:authorizations, card(authorization))
+         |> put_flash(:info, "Updated #{authorization.agent.name}.")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :edit_form, to_form(changeset, as: :settings))}
+    end
+  end
+
+  def handle_event("cancel_edit", _params, socket) do
+    {:noreply, assign(socket, editing: nil, edit_form: nil)}
+  end
+
   def handle_event("shop", %{"authorization_id" => id, "shop" => %{"query" => query}}, socket) do
     authorization = Authorizations.get_authorization!(id)
     result = ShoppingAgent.run(authorization, query)
@@ -87,7 +127,6 @@ defmodule AgentProofWeb.DashboardLive do
   defp build_grant_form(params),
     do: params |> Authorizations.change_grant() |> to_form(as: :grant)
 
-  # A stream item: the authorization plus what it has spent so far.
   defp card(authorization) do
     %{
       id: authorization.id,
