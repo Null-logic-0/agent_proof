@@ -7,7 +7,8 @@ defmodule AgentProof.Fixtures do
   through the schema changeset directly.
   """
 
-  alias AgentProof.{Agents, Authorizations, Repo}
+  alias AgentProof.{Agents, Authorizations, Disputes, Repo, Transactions}
+  alias AgentProof.Agents.ShoppingAgent
   alias AgentProof.Transactions.Transaction
   alias AgentProof.Disputes.Dispute
   alias AgentProof.Evidence.Package
@@ -60,6 +61,41 @@ defmodule AgentProof.Fixtures do
       })
     )
     |> Repo.insert!()
+  end
+
+  @doc """
+  A full case: an agent buys headphones (Demo PayPal), the order is delivered,
+  then the customer disputes it. Returns the dispute as loaded by `get_case!/1`.
+
+  Options: `:reason` (default `:unauthorized`) and `:delivered_at`
+  (default: a day ago; `nil` for no fulfillment).
+  """
+  def disputed_case_fixture(opts \\ []) do
+    authorization = authorization_fixture(agent_fixture())
+    {:ok, transaction} = ShoppingAgent.run(authorization, "headphones")
+
+    default_delivery = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)
+
+    transaction =
+      case Keyword.get(opts, :delivered_at, default_delivery) do
+        nil ->
+          transaction
+
+        delivered_at ->
+          {:ok, transaction} =
+            Transactions.record_fulfillment(transaction, %{
+              carrier: "UPS",
+              tracking_number: "1Z999AA10123456784",
+              delivered_at: delivered_at
+            })
+
+          transaction
+      end
+
+    {:ok, dispute} =
+      Disputes.open_dispute(transaction, %{reason: Keyword.get(opts, :reason, :unauthorized)})
+
+    Disputes.get_case!(dispute.id)
   end
 
   def evidence_fixture(dispute, attrs \\ %{}) do

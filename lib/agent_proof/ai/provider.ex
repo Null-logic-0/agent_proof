@@ -16,7 +16,8 @@ defmodule AgentProof.AI.Provider do
         },
         "transaction" => %{
           "product_name" => "Sony WH-1000XM5 Headphones", "amount" => "189.99",
-          "currency" => "USD", "paypal_order_id" => "6CF36743HA4658629",
+          "currency" => "USD", "status" => "completed",
+          "paypal_order_id" => "6CF36743HA4658629",
           "capture_simulated" => true, "purchased_at" => "2026-10-08T12:00:05Z"
         },
         "fulfillment" => %{
@@ -28,16 +29,20 @@ defmodule AgentProof.AI.Provider do
           "due_date" => "2026-10-22"
         },
         "checks" => %{
-          "within_budget" => true, "currency_matches" => true,
-          "system_budget_check_logged" => true, "delivered_before_dispute" => true
+          "within_budget" => true, "system_budget_check_logged" => true,
+          "currency_matches" => true, "authorized_before_purchase" => true,
+          "delivered_before_dispute" => true
         },
         "agent_actions" => [
-          %{"action" => "search_products", "actor" => "agent", "at" => "2026-10-08T12:00:01Z"}
+          %{"action" => "search_products", "actor" => "agent",
+            "at" => "2026-10-08T12:00:01Z", "details" => %{"query" => "headphones"}}
         ]
       }
 
-  `"fulfillment"` is `nil` when nothing was delivered. `"checks"` are computed
-  by AgentProof, never by a model.
+  `"fulfillment"` and `"delivered_before_dispute"` are `nil` when nothing was
+  delivered; `"capture_simulated"` is `nil` when no capture was recorded.
+  `"checks"` are computed by AgentProof (see
+  `AgentProof.Transactions.reconstruct/2`), never by a model.
 
   ## Evidence (output)
 

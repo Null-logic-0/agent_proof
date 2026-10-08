@@ -21,6 +21,16 @@ defmodule AgentProof.Transactions do
   def get_transaction!(id), do: Repo.get!(Transaction, id)
 
   @doc """
+  Rebuilds a disputed transaction as plain facts, including computed checks.
+
+  Pure; `transaction` must have `authorization: :agent` preloaded, as
+  returned inside `AgentProof.Disputes.get_case!/1`.
+  """
+  defdelegate reconstruct(transaction, dispute),
+    to: AgentProof.Transactions.Reconstruction,
+    as: :facts
+
+  @doc """
   Total amount committed against `authorization`.
 
   Created orders count because they still reserve budget; failed ones never

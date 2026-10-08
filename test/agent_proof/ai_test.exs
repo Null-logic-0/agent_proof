@@ -2,7 +2,7 @@ defmodule AgentProof.AITest do
   use ExUnit.Case, async: true
 
   alias AgentProof.AI
-  alias AgentProof.AI.{Demo, TestProvider}
+  alias AgentProof.AI.{Demo, EvidenceSchema, Prompt, TestProvider}
 
   @facts %{
     "agent_name" => "ShopBot",
@@ -34,6 +34,7 @@ defmodule AgentProof.AITest do
       "within_budget" => true,
       "currency_matches" => true,
       "system_budget_check_logged" => true,
+      "authorized_before_purchase" => true,
       "delivered_before_dispute" => true
     },
     "agent_actions" => [
@@ -92,6 +93,68 @@ defmodule AgentProof.AITest do
       assert evidence["ai_explanation"] =~ "No language model was used"
       assert Enum.any?(evidence["transaction_evidence"]["facts"], &(&1 =~ "simulated"))
       refute Enum.any?(demo(real_capture)["transaction_evidence"]["facts"], &(&1 =~ "simulated"))
+    end
+  end
+
+  describe "EvidenceSchema" do
+    # OpenAI strict mode: every object lists all its properties as required
+    # and forbids extra ones.
+    defp assert_strict(%{"type" => "object", "properties" => properties} = schema) do
+      assert schema["additionalProperties"] == false
+      assert Enum.sort(schema["required"]) == Enum.sort(Map.keys(properties))
+      Enum.each(properties, fn {_name, property} -> assert_strict(property) end)
+    end
+
+    defp assert_strict(%{"type" => "array", "items" => items}), do: assert_strict(items)
+    defp assert_strict(%{"type" => "string"}), do: :ok
+
+    # A tiny JSON Schema checker covering the keywords our schema uses.
+    defp conforms?(%{} = value, %{"type" => "object"} = schema) do
+      Enum.sort(Map.keys(value)) == Enum.sort(schema["required"]) and
+        Enum.all?(value, fn {key, v} -> conforms?(v, schema["properties"][key]) end)
+    end
+
+    defp conforms?(value, %{"type" => "array", "items" => items}) when is_list(value),
+      do: Enum.all?(value, &conforms?(&1, items))
+
+    defp conforms?(value, %{"type" => "string"}), do: is_binary(value)
+    defp conforms?(_value, _schema), do: false
+
+    test "satisfies OpenAI's strict-mode rules on every object" do
+      assert_strict(EvidenceSchema.json_schema())
+    end
+
+    test "AI.Demo's output conforms to the schema" do
+      assert conforms?(demo(), EvidenceSchema.json_schema())
+    end
+
+    test "the checker rejects a non-conforming answer" do
+      refute conforms?(Map.delete(demo(), "summary"), EvidenceSchema.json_schema())
+      refute conforms?(Map.put(demo(), "extra", "x"), EvidenceSchema.json_schema())
+    end
+  end
+
+  describe "Prompt" do
+    test "the system prompt carries the grounding rules" do
+      system = Prompt.system()
+
+      assert system =~ "Use only the facts provided"
+      assert system =~ ~s("checks" were computed by the merchant's system and are authoritative)
+      assert system =~ "If the payment capture was simulated, say so"
+    end
+
+    test "the user prompt embeds exactly the facts as JSON" do
+      [_before, json] = String.split(Prompt.user(@facts), "Case facts (JSON):\n")
+      [json, _after] = String.split(json, "\n\nWrite the evidence package.")
+
+      assert Jason.decode!(json) == @facts
+    end
+
+    test "guidance follows the dispute reason" do
+      not_received = put_in(@facts, ["dispute", "reason"], "not_received")
+
+      assert Prompt.user(@facts) =~ "Focus on what the customer authorized"
+      assert Prompt.user(not_received) =~ "Focus on fulfillment"
     end
   end
 

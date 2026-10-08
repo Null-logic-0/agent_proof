@@ -8,6 +8,30 @@ defmodule AgentProof.AI do
   through to the provider.
   """
 
+  alias AgentProof.AI.{EvidenceSchema, Prompt}
+  alias AgentProof.Transactions
+
+  @doc """
+  Generates an evidence package for a disputed transaction.
+
+  `transaction` must have `authorization: :agent` preloaded, as returned
+  inside `AgentProof.Disputes.get_case!/1`. Returns the provider's raw,
+  unvalidated evidence map.
+  """
+  def generate_evidence(transaction, dispute, opts \\ []) do
+    facts = Transactions.reconstruct(transaction, dispute)
+
+    generate(
+      %{
+        system: Prompt.system(),
+        prompt: Prompt.user(facts),
+        schema: EvidenceSchema.json_schema(),
+        facts: facts
+      },
+      opts
+    )
+  end
+
   def generate(request, opts \\ []), do: provider(opts).generate(request, opts)
 
   def provider_name(opts \\ []), do: provider(opts).name()
