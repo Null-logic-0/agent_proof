@@ -9,7 +9,8 @@ defmodule AgentProof.Transactions.Transaction do
     field :product_name, :string
     field :status, Ecto.Enum, values: [:created, :completed, :failed]
     field :agent_actions, {:array, :map}, default: []
-    field :fulfillment, :map
+
+    embeds_one :fulfillment, AgentProof.Transactions.Fulfillment, on_replace: :update
 
     belongs_to :authorization, AgentProof.Authorizations.Authorization
     has_one :dispute, AgentProof.Disputes.Dispute
@@ -27,5 +28,12 @@ defmodule AgentProof.Transactions.Transaction do
     |> assoc_constraint(:authorization)
     |> unique_constraint(:paypal_order_id)
     |> check_constraint(:amount, name: :amount_must_be_positive)
+  end
+
+  @doc false
+  def fulfillment_changeset(transaction, attrs) do
+    transaction
+    |> cast(attrs, [])
+    |> cast_embed(:fulfillment, required: true)
   end
 end

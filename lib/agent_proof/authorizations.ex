@@ -3,11 +3,26 @@ defmodule AgentProof.Authorizations do
   What a user allowed an agent to spend.
   """
 
+  import Ecto.Query, warn: false
+
   alias AgentProof.Repo
   alias AgentProof.Agents.Agent
   alias AgentProof.Authorizations.Authorization
 
   def get_authorization!(id), do: Repo.get!(Authorization, id)
+
+  @doc """
+  Reloads `authorization` with a row lock (`SELECT ... FOR UPDATE`).
+
+  Must be called inside `Repo.transact/2`. Other transactions that try to lock
+  the same row wait until this one commits or rolls back.
+  """
+  def lock_authorization!(%Authorization{id: id}) do
+    Authorization
+    |> where([a], a.id == ^id)
+    |> lock("FOR UPDATE")
+    |> Repo.one!()
+  end
 
   @doc """
   Creates an authorization for `agent`.
