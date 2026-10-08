@@ -9,6 +9,17 @@ defmodule AgentProof.AuthorizationsTest do
 
   @valid_attrs %{max_amount: "200.00", currency: "USD", description: "Headphones up to $200"}
 
+  @usd_200 %Authorization{max_amount: Decimal.new("200.00"), currency: "USD"}
+
+  defp check(authorization, spent, amount, currency \\ "USD") do
+    Authorizations.check_purchase(
+      authorization,
+      Decimal.new(spent),
+      Decimal.new(amount),
+      currency
+    )
+  end
+
   describe "create_authorization/2" do
     test "creates an authorization owned by the given agent" do
       agent = agent_fixture()
@@ -72,6 +83,39 @@ defmodule AgentProof.AuthorizationsTest do
                Authorizations.create_authorization(%Agent{id: -1}, @valid_attrs)
 
       assert "does not exist" in errors_on(changeset).agent
+    end
+  end
+
+  describe "check_purchase/4" do
+    test "allows a purchase within the budget" do
+      assert check(@usd_200, "0", "189.99") == :ok
+    end
+
+    test "allows spending exactly up to the limit, not a cent more" do
+      assert check(@usd_200, "0", "200.00") == :ok
+      assert check(@usd_200, "0", "200.01") == {:error, :exceeds_budget}
+    end
+
+    test "counts what was already spent" do
+      assert check(@usd_200, "150.00", "50.00") == :ok
+      assert check(@usd_200, "150.00", "50.01") == {:error, :exceeds_budget}
+    end
+
+    test "compares amounts numerically, not structurally" do
+      # With `>`, Decimal.new("200.00") > Decimal.new("1000") is true:
+      # structs compare field by field, and 200.00 is stored as coef 20000.
+      usd_1000 = %Authorization{max_amount: Decimal.new("1000"), currency: "USD"}
+
+      assert check(usd_1000, "0", "200.00") == :ok
+    end
+
+    test "rejects a currency that differs from the authorization" do
+      assert check(@usd_200, "0", "10.00", "EUR") == {:error, :currency_mismatch}
+    end
+
+    test "rejects zero and negative amounts" do
+      assert check(@usd_200, "0", "0") == {:error, :invalid_amount}
+      assert check(@usd_200, "0", "-1.00") == {:error, :invalid_amount}
     end
   end
 

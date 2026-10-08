@@ -98,6 +98,28 @@ defmodule AgentProof.TransactionsTest do
     end
   end
 
+  describe "spent_amount/1" do
+    test "is zero when nothing was bought", %{authorization: authorization} do
+      assert Decimal.equal?(Transactions.spent_amount(authorization), 0)
+    end
+
+    test "sums created and completed transactions, ignoring failed ones",
+         %{authorization: authorization} do
+      transaction_fixture(authorization, %{amount: "100.00", status: :completed})
+      transaction_fixture(authorization, %{amount: "40.50", status: :created})
+      transaction_fixture(authorization, %{amount: "999.00", status: :failed})
+
+      assert Decimal.equal?(Transactions.spent_amount(authorization), "140.50")
+    end
+
+    test "only counts the given authorization's transactions", %{authorization: authorization} do
+      other_authorization = authorization_fixture(agent_fixture(%{name: "Other"}))
+      transaction_fixture(other_authorization, %{amount: "75.00"})
+
+      assert Decimal.equal?(Transactions.spent_amount(authorization), 0)
+    end
+  end
+
   test "list_transactions/0 returns newest first", %{authorization: authorization} do
     older = transaction_fixture(authorization)
     newer = transaction_fixture(authorization)
