@@ -4,7 +4,7 @@ defmodule AgentProof.TransactionsTest do
   import AgentProof.Fixtures
 
   alias AgentProof.Transactions
-  alias AgentProof.Transactions.{Fulfillment, Transaction}
+  alias AgentProof.Transactions.{AgentAction, Fulfillment, Transaction}
 
   @valid_attrs %{
     paypal_order_id: "ORDER-1",
@@ -68,29 +68,15 @@ defmodule AgentProof.TransactionsTest do
       assert transaction_fixture(authorization).agent_actions == []
     end
 
-    test "agent_actions round-trip through Postgres", %{authorization: authorization} do
-      actions = [
-        %{"action" => "search_product", "at" => "2026-10-08T12:00:00Z"},
-        %{"action" => "select_product", "details" => %{"price" => "189.99"}}
-      ]
-
-      transaction =
-        %Transaction{authorization_id: authorization.id, agent_actions: actions}
-        |> Transaction.changeset(@valid_attrs)
-        |> Repo.insert!()
-
-      assert Transactions.get_transaction!(transaction.id).agent_actions == actions
-    end
-
     test "atom keys in plain maps come back as string keys", %{authorization: authorization} do
-      transaction =
-        %Transaction{authorization_id: authorization.id, agent_actions: [%{action: "search"}]}
-        |> Transaction.changeset(@valid_attrs)
-        |> Repo.insert!()
+      searched = %{action: :search_products, at: DateTime.utc_now(), details: %{query: "cable"}}
 
-      assert Transactions.get_transaction!(transaction.id).agent_actions == [
-               %{"action" => "search"}
-             ]
+      {:ok, transaction} = Transactions.purchase(authorization, product("19.99"), [searched])
+
+      [reloaded_search, _budget_check] =
+        Transactions.get_transaction!(transaction.id).agent_actions
+
+      assert reloaded_search.details == %{"query" => "cable"}
     end
   end
 
@@ -127,6 +113,54 @@ defmodule AgentProof.TransactionsTest do
          %{authorization: authorization} do
       assert Transactions.purchase(authorization, product("10.00", "EUR")) ==
                {:error, :currency_mismatch}
+    end
+  end
+
+  describe "purchase/3 agent actions" do
+    test "without agent actions, only the system budget check is logged",
+         %{authorization: authorization} do
+      {:ok, transaction} = Transactions.purchase(authorization, product("189.99"))
+
+      assert [%AgentAction{action: :budget_check, actor: :system} = check] =
+               transaction.agent_actions
+
+      assert check.details == %{
+               "result" => "approved",
+               "spent" => "0.00",
+               "amount" => "189.99",
+               "max_amount" => "200.00",
+               "currency" => "USD"
+             }
+    end
+
+    test "an agent cannot forge a system action", %{authorization: authorization} do
+      forged = %{
+        action: :budget_check,
+        actor: :system,
+        at: DateTime.utc_now(),
+        details: %{"result" => "approved"}
+      }
+
+      {:ok, transaction} = Transactions.purchase(authorization, product("19.99"), [forged])
+
+      assert [%AgentAction{actor: :agent}, %AgentAction{actor: :system}] =
+               transaction.agent_actions
+    end
+
+    test "rejects invalid agent actions and stores nothing", %{authorization: authorization} do
+      unknown = %{action: :wire_money, at: DateTime.utc_now()}
+      undated = %{action: :search_products}
+
+      assert {:error, changeset} =
+               Transactions.purchase(authorization, product("19.99"), [unknown])
+
+      assert "is invalid" in errors_on(changeset).action
+
+      assert {:error, changeset} =
+               Transactions.purchase(authorization, product("19.99"), [undated])
+
+      assert "can't be blank" in errors_on(changeset).at
+      assert Transactions.list_transactions() == []
     end
   end
 

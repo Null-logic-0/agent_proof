@@ -8,8 +8,8 @@ defmodule AgentProof.Transactions.Transaction do
     field :currency, :string
     field :product_name, :string
     field :status, Ecto.Enum, values: [:created, :completed, :failed]
-    field :agent_actions, {:array, :map}, default: []
 
+    embeds_many :agent_actions, AgentProof.Transactions.AgentAction
     embeds_one :fulfillment, AgentProof.Transactions.Fulfillment, on_replace: :update
 
     belongs_to :authorization, AgentProof.Authorizations.Authorization

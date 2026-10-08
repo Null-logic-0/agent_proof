@@ -8,7 +8,7 @@ defmodule AgentProof.Transactions do
   alias AgentProof.Repo
   alias AgentProof.Authorizations
   alias AgentProof.Authorizations.Authorization
-  alias AgentProof.Transactions.Transaction
+  alias AgentProof.Transactions.{AgentAction, Transaction}
 
   def list_transactions do
     Transaction
@@ -37,27 +37,42 @@ defmodule AgentProof.Transactions do
 
   The lock, budget check, and insert run in one database transaction, so
   concurrent purchases against the same authorization cannot overspend it.
-  """
-  def purchase(%Authorization{} = authorization, %{
-        name: name,
-        price: %Decimal{} = price,
-        currency: currency
-      }) do
-    Repo.transact(fn ->
-      authorization = Authorizations.lock_authorization!(authorization)
-      spent = spent_amount(authorization)
 
-      with :ok <- Authorizations.check_purchase(authorization, spent, price, currency) do
-        %Transaction{authorization_id: authorization.id}
-        |> Transaction.changeset(%{
-          amount: price,
-          currency: currency,
-          product_name: name,
-          status: :created
-        })
-        |> Repo.insert()
-      end
-    end)
+  `agent_actions` is the agent's own log (untrusted input). It is validated,
+  stored with the transaction, and followed by a `:budget_check` system action.
+  """
+  def purchase(
+        %Authorization{} = authorization,
+        %{name: name, price: %Decimal{} = price, currency: currency},
+        agent_actions \\ []
+      ) do
+    with {:ok, agent_actions} <- AgentAction.from_agent(agent_actions) do
+      Repo.transact(fn ->
+        authorization = Authorizations.lock_authorization!(authorization)
+        spent = spent_amount(authorization)
+
+        with :ok <- Authorizations.check_purchase(authorization, spent, price, currency) do
+          budget_check =
+            AgentAction.system(:budget_check, %{
+              "result" => "approved",
+              "spent" => money(spent),
+              "amount" => money(price),
+              "max_amount" => money(authorization.max_amount),
+              "currency" => currency
+            })
+
+          %Transaction{authorization_id: authorization.id}
+          |> Transaction.changeset(%{
+            amount: price,
+            currency: currency,
+            product_name: name,
+            status: :created
+          })
+          |> Ecto.Changeset.put_embed(:agent_actions, agent_actions ++ [budget_check])
+          |> Repo.insert()
+        end
+      end)
+    end
   end
 
   @doc """
@@ -70,4 +85,6 @@ defmodule AgentProof.Transactions do
   end
 
   def record_fulfillment(%Transaction{}, _attrs), do: {:error, :not_completed}
+
+  defp money(%Decimal{} = amount), do: amount |> Decimal.round(2) |> Decimal.to_string()
 end
