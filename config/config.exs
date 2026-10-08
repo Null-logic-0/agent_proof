@@ -11,6 +11,9 @@ config :agent_proof,
   ecto_repos: [AgentProof.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# PayPal adapter (see AgentProof.PayPal). Demo needs no network or credentials.
+config :agent_proof, :paypal_adapter, AgentProof.PayPal.Demo
+
 # Configure the endpoint
 config :agent_proof, AgentProofWeb.Endpoint,
   url: [host: "localhost"],

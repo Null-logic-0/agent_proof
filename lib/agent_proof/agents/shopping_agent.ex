@@ -11,7 +11,7 @@ defmodule AgentProof.Agents.ShoppingAgent do
   alias AgentProof.{Catalog, Transactions}
   alias AgentProof.Authorizations.Authorization
 
-  def run(%Authorization{} = authorization, query) do
+  def run(%Authorization{} = authorization, query, opts \\ []) do
     products = Catalog.search(query)
     searched = action(:search_products, %{"query" => query, "results" => length(products)})
 
@@ -27,7 +27,7 @@ defmodule AgentProof.Agents.ShoppingAgent do
             "price" => Decimal.to_string(product.price)
           })
 
-        Transactions.purchase(authorization, product, [searched, selected])
+        Transactions.purchase(authorization, product, [searched, selected], opts)
     end
   end
 

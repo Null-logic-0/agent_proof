@@ -2,9 +2,11 @@ defmodule AgentProof.TransactionsTest do
   use AgentProof.DataCase, async: true
 
   import AgentProof.Fixtures
+  import ExUnit.CaptureLog
 
   alias AgentProof.Transactions
   alias AgentProof.Transactions.{AgentAction, Fulfillment, Transaction}
+  alias AgentProof.PayPal.TestClient
 
   @valid_attrs %{
     paypal_order_id: "ORDER-1",
@@ -73,7 +75,7 @@ defmodule AgentProof.TransactionsTest do
 
       {:ok, transaction} = Transactions.purchase(authorization, product("19.99"), [searched])
 
-      [reloaded_search, _budget_check] =
+      [reloaded_search | _system_actions] =
         Transactions.get_transaction!(transaction.id).agent_actions
 
       assert reloaded_search.details == %{"query" => "cable"}
@@ -81,15 +83,15 @@ defmodule AgentProof.TransactionsTest do
   end
 
   describe "purchase/2" do
-    test "reserves budget with a :created transaction", %{authorization: authorization} do
+    test "completes the purchase with a PayPal order", %{authorization: authorization} do
       assert {:ok, %Transaction{} = transaction} =
                Transactions.purchase(authorization, product("189.99"))
 
-      assert transaction.status == :created
+      assert transaction.status == :completed
       assert transaction.authorization_id == authorization.id
       assert transaction.product_name == "Sony WH-1000XM5 Headphones"
       assert Decimal.equal?(transaction.amount, "189.99")
-      assert transaction.paypal_order_id == nil
+      assert transaction.paypal_order_id == "DEMO-ORDER-transaction-#{transaction.id}"
     end
 
     test "rejects a purchase over the budget and writes nothing",
@@ -117,12 +119,20 @@ defmodule AgentProof.TransactionsTest do
   end
 
   describe "purchase/3 agent actions" do
-    test "without agent actions, only the system budget check is logged",
+    test "without agent actions, only system actions are logged",
          %{authorization: authorization} do
       {:ok, transaction} = Transactions.purchase(authorization, product("189.99"))
 
-      assert [%AgentAction{action: :budget_check, actor: :system} = check] =
-               transaction.agent_actions
+      assert [
+               %AgentAction{action: :budget_check, actor: :system} = check,
+               %AgentAction{action: :create_paypal_order, actor: :system},
+               %AgentAction{action: :capture_payment, actor: :system} = captured
+             ] = transaction.agent_actions
+
+      assert captured.details == %{
+               "order_id" => "DEMO-ORDER-transaction-#{transaction.id}",
+               "capture_id" => "DEMO-CAPTURE-transaction-#{transaction.id}"
+             }
 
       assert check.details == %{
                "result" => "approved",
@@ -143,7 +153,10 @@ defmodule AgentProof.TransactionsTest do
 
       {:ok, transaction} = Transactions.purchase(authorization, product("19.99"), [forged])
 
-      assert [%AgentAction{actor: :agent}, %AgentAction{actor: :system}] =
+      assert [
+               %AgentAction{actor: :agent},
+               %AgentAction{action: :budget_check, actor: :system} | _
+             ] =
                transaction.agent_actions
     end
 
@@ -161,6 +174,51 @@ defmodule AgentProof.TransactionsTest do
 
       assert "can't be blank" in errors_on(changeset).at
       assert Transactions.list_transactions() == []
+    end
+  end
+
+  describe "purchase/4 payment failures" do
+    test "a failed order creation marks the transaction :failed and releases the budget",
+         %{authorization: authorization} do
+      log =
+        capture_log(fn ->
+          assert Transactions.purchase(authorization, product("189.99"), [],
+                   adapter: TestClient,
+                   fail: :create
+                 ) == {:error, :payment_failed}
+        end)
+
+      assert log =~ "PayPal create_order failed"
+
+      assert [%Transaction{status: :failed, paypal_order_id: nil} = failed] =
+               Transactions.list_transactions()
+
+      assert %AgentAction{action: :payment_failed, details: %{"step" => "create_order"}} =
+               List.last(failed.agent_actions)
+
+      assert Decimal.equal?(Transactions.spent_amount(authorization), 0)
+      assert {:ok, _} = Transactions.purchase(authorization, product("189.99"))
+    end
+
+    test "a failed capture keeps the PayPal order id for the record",
+         %{authorization: authorization} do
+      log =
+        capture_log(fn ->
+          assert Transactions.purchase(authorization, product("189.99"), [],
+                   adapter: TestClient,
+                   fail: :capture
+                 ) == {:error, :payment_failed}
+        end)
+
+      assert log =~ "PayPal capture_order failed"
+
+      [failed] = Transactions.list_transactions()
+
+      assert failed.status == :failed
+      assert failed.paypal_order_id == "DEMO-ORDER-transaction-#{failed.id}"
+
+      assert [:budget_check, :create_paypal_order, :payment_failed] =
+               Enum.map(failed.agent_actions, & &1.action)
     end
   end
 

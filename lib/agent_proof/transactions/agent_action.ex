@@ -3,7 +3,16 @@ defmodule AgentProof.Transactions.AgentAction do
   import Ecto.Changeset
 
   embedded_schema do
-    field :action, Ecto.Enum, values: [:search_products, :select_product, :budget_check]
+    field :action, Ecto.Enum,
+      values: [
+        :search_products,
+        :select_product,
+        :budget_check,
+        :create_paypal_order,
+        :capture_payment,
+        :payment_failed
+      ]
+
     field :actor, Ecto.Enum, values: [:agent, :system]
     field :at, :utc_datetime_usec
     field :details, :map, default: %{}
