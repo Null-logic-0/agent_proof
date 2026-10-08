@@ -34,41 +34,57 @@ defmodule AgentProofWeb.Layouts do
   slot :inner_block, required: true
 
   def app(assigns) do
+    assigns =
+      assign(assigns,
+        paypal_adapter: AgentProof.PayPal.adapter_name(),
+        ai_provider: AgentProof.AI.provider_name()
+      )
+
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
+    <header class="navbar flex-wrap gap-x-2 gap-y-2 border-b border-base-300 bg-base-100 px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
+        <.link navigate={~p"/"} class="flex w-fit items-center gap-2.5">
+          <span class="grid size-8 place-items-center rounded-lg bg-primary text-primary-content">
+            <.icon name="hero-shield-check" class="size-5" />
+          </span>
+          <span class="text-base font-semibold tracking-tight">AgentProof</span>
+        </.link>
       </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://phoenix.hexdocs.pm/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
+      <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+        <.mode_badge id="paypal-mode" label="PayPal" value={@paypal_adapter} />
+        <.mode_badge id="ai-provider" label="AI" value={@ai_provider} />
+        <.theme_toggle />
       </div>
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
+    <main class="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <div class="mx-auto max-w-6xl">
         {render_slot(@inner_block)}
       </div>
     </main>
 
     <.flash_group flash={@flash} />
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :label, :string, required: true
+  attr :value, :string, required: true
+
+  # Shows which PayPal adapter or AI provider is active. Demo is the warning
+  # color, so it is obvious when nothing real is being called.
+  defp mode_badge(assigns) do
+    ~H"""
+    <span
+      id={@id}
+      class={[
+        "badge badge-soft max-w-full gap-1",
+        if(@value == "demo", do: "badge-warning", else: "badge-success")
+      ]}
+    >
+      <span class="shrink-0">{@label}:</span>
+      <span class="truncate font-semibold">{@value}</span>
+    </span>
     """
   end
 

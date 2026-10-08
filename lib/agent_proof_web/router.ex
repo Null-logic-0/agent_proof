@@ -17,7 +17,7 @@ defmodule AgentProofWeb.Router do
   scope "/", AgentProofWeb do
     pipe_through :browser
 
-    live "/", HomeLive, :home
+    live "/", DashboardLive, :index
   end
 
   # Other scopes may use custom stacks.

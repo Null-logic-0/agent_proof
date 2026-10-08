@@ -18,7 +18,8 @@ defmodule AgentProof.Authorizations.Authorization do
     authorization
     |> cast(attrs, [:max_amount, :currency, :description])
     |> validate_required([:max_amount, :currency, :description])
-    |> validate_number(:max_amount, greater_than: 0)
+    # numeric(12,2) holds up to 9,999,999,999.99; larger values would crash the insert.
+    |> validate_number(:max_amount, greater_than: 0, less_than: 10_000_000_000)
     |> validate_format(:currency, ~r/\A[A-Z]{3}\z/, message: "must be a 3-letter uppercase code")
     |> assoc_constraint(:agent)
     |> check_constraint(:max_amount, name: :max_amount_must_be_positive)

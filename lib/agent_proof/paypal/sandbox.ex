@@ -21,6 +21,9 @@ defmodule AgentProof.PayPal.Sandbox do
   @behaviour AgentProof.PayPal.Client
 
   @impl true
+  def name, do: "sandbox"
+
+  @impl true
   def create_order(order, _opts) do
     body = %{
       intent: "CAPTURE",

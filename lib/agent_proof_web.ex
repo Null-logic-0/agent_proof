@@ -86,6 +86,8 @@ defmodule AgentProofWeb do
       import Phoenix.HTML
       # Core UI components
       import AgentProofWeb.CoreComponents
+      # Display formatting, e.g. money/1
+      import AgentProofWeb.Format
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

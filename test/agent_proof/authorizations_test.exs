@@ -119,6 +119,85 @@ defmodule AgentProof.AuthorizationsTest do
     end
   end
 
+  describe "grant/1" do
+    @grant %{
+      "agent_name" => "ShopBot",
+      "max_amount" => "200",
+      "currency" => "USD",
+      "description" => "Headphones up to $200"
+    }
+
+    test "creates the agent and its authorization together" do
+      assert {:ok, %Authorization{} = authorization} = Authorizations.grant(@grant)
+
+      assert authorization.agent.name == "ShopBot"
+      assert authorization.transactions == []
+      assert Decimal.equal?(authorization.max_amount, "200")
+    end
+
+    test "uses the schema changesets' rules and creates nothing when invalid" do
+      assert {:error, changeset} =
+               Authorizations.grant(%{@grant | "agent_name" => "", "max_amount" => "0"})
+
+      assert "can't be blank" in errors_on(changeset).agent_name
+      assert "must be greater than 0" in errors_on(changeset).max_amount
+      assert AgentProof.Agents.list_agents() == []
+    end
+
+    test "change_grant/1 reports a cast error once, not twice" do
+      changeset = Authorizations.change_grant(%{@grant | "max_amount" => "lots"})
+
+      assert errors_on(changeset).max_amount == ["is invalid"]
+    end
+  end
+
+  test "rejects a max_amount too large for the database column" do
+    assert {:error, changeset} =
+             Authorizations.create_authorization(agent_fixture(), %{
+               @valid_attrs
+               | max_amount: "10000000000"
+             })
+
+    assert "must be less than 10000000000" in errors_on(changeset).max_amount
+  end
+
+  describe "delete_agent/1" do
+    test "deletes an unused agent together with its authorizations" do
+      agent = agent_fixture()
+      authorization = authorization_fixture(agent)
+
+      assert {:ok, %{agent: deleted, authorization_ids: ids}} = Authorizations.delete_agent(agent)
+
+      assert deleted.id == agent.id
+      assert ids == [authorization.id]
+      assert AgentProof.Agents.list_agents() == []
+      assert Authorizations.list_authorizations() == []
+    end
+
+    test "keeps agents with purchase records, even failed ones" do
+      for status <- [:completed, :failed] do
+        agent = agent_fixture(%{name: "Agent #{status}"})
+        authorization = authorization_fixture(agent)
+        transaction_fixture(authorization, %{status: status})
+
+        assert Authorizations.delete_agent(agent) == {:error, :has_purchases}
+        assert Authorizations.get_authorization!(authorization.id)
+      end
+    end
+  end
+
+  test "list_authorizations/0 returns newest first with activity preloaded" do
+    agent = agent_fixture()
+    older = authorization_fixture(agent)
+    newer = authorization_fixture(agent)
+    transaction = transaction_fixture(newer)
+
+    assert [first, second] = Authorizations.list_authorizations()
+    assert {first.id, second.id} == {newer.id, older.id}
+    assert first.agent.id == agent.id
+    assert Enum.map(first.transactions, & &1.id) == [transaction.id]
+  end
+
   test "get_authorization!/1 returns the authorization" do
     authorization = authorization_fixture(agent_fixture())
 

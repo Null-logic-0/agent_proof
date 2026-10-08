@@ -12,6 +12,9 @@ defmodule AgentProof.PayPal.Client do
           reference_id: String.t()
         }
 
+  @doc ~s(Label for the UI, e.g. "demo" or "sandbox".)
+  @callback name() :: String.t()
+
   @callback create_order(order(), opts :: keyword()) ::
               {:ok, %{order_id: String.t()}} | {:error, term()}
 

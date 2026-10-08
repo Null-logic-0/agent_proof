@@ -9,6 +9,9 @@ defmodule AgentProof.PayPal.Demo do
   @behaviour AgentProof.PayPal.Client
 
   @impl true
+  def name, do: "demo"
+
+  @impl true
   def create_order(%{reference_id: reference_id}, _opts) do
     {:ok, %{order_id: "DEMO-ORDER-" <> reference_id}}
   end

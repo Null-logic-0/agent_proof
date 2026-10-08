@@ -1,0 +1,39 @@
+<Layouts.app {assigns}>
+  <div class="mb-8">
+    <h1 class="text-2xl font-semibold tracking-tight">Agent authorizations</h1>
+    <p class="mt-1 text-sm text-base-content/70">
+      Give an AI agent a spending limit, let it shop, and keep a provable record of every step.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
+    <section class="card border border-base-300 bg-base-100 shadow-sm lg:sticky lg:top-6">
+      <div class="card-body">
+        <h2 class="card-title text-base">Authorize an agent</h2>
+        <p class="text-sm text-base-content/70">What the customer allows the agent to buy.</p>
+
+        <.grant_form form={@form} />
+      </div>
+    </section>
+
+    <section id="authorizations" phx-update="stream" class="space-y-4">
+      <div
+        id="authorizations-empty"
+        class="card hidden border border-dashed border-base-300 only:flex"
+      >
+        <div class="card-body items-center text-center">
+          <.icon name="hero-cpu-chip" class="size-8 text-base-content/30" />
+          <p class="text-sm font-medium">No authorized agents yet</p>
+          <p class="text-sm text-base-content/60">Authorize one to let it start shopping.</p>
+        </div>
+      </div>
+
+      <.authorization_card
+        :for={{dom_id, card} <- @streams.authorizations}
+        id={dom_id}
+        card={card}
+        shop_form={@shop_form}
+      />
+    </section>
+  </div>
+</Layouts.app>

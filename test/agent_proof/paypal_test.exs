@@ -35,6 +35,11 @@ defmodule AgentProof.PayPalTest do
       assert PayPal.create_order(@order) == {:ok, %{order_id: "DEMO-ORDER-transaction-42"}}
     end
 
+    test "adapter_name/1 labels the active adapter" do
+      assert PayPal.adapter_name() == "demo"
+      assert PayPal.adapter_name(adapter: AgentProof.PayPal.Sandbox) == "sandbox"
+    end
+
     test "an explicit :adapter option wins over config" do
       assert PayPal.create_order(@order, adapter: TestClient, fail: :create) ==
                {:error, :sandbox_unavailable}

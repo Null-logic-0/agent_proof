@@ -11,6 +11,9 @@ defmodule AgentProof.PayPal.TestClient do
   alias AgentProof.PayPal.Demo
 
   @impl true
+  def name, do: "test"
+
+  @impl true
   def create_order(order, opts) do
     if opts[:fail] == :create,
       do: {:error, :sandbox_unavailable},
