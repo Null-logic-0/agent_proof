@@ -156,6 +156,24 @@ defmodule AgentProof.AITest do
       assert Prompt.user(@facts) =~ "Focus on what the customer authorized"
       assert Prompt.user(not_received) =~ "Focus on fulfillment"
     end
+
+    test "system actions are attributed to the merchant's system, not the agent" do
+      assert Prompt.system() =~
+               ~s(Actions with actor "system" were performed by the merchant's system)
+    end
+
+    test "feedback from a rejected answer is appended as a correction request" do
+      prompt = Prompt.user(@facts, "- summary mentions 249.99, not found in the case facts")
+
+      refute Prompt.user(@facts) =~ "rejected"
+      assert prompt =~ "Your previous answer was rejected:\n- summary mentions 249.99"
+      assert prompt =~ "Use only values that appear in the case facts."
+    end
+
+    test "the schema asks for the PayPal order ID" do
+      assert EvidenceSchema.json_schema()["properties"]["transaction_evidence"]["description"] =~
+               "Include the PayPal order ID."
+    end
   end
 
   describe "provider selection" do

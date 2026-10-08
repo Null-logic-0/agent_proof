@@ -13,11 +13,16 @@ defmodule AgentProof.AI.Prompt do
   3. If information is missing (for example, no fulfillment record), say so plainly instead of guessing.
   4. Do not overstate. If the payment capture was simulated, say so.
   5. Be neutral and factual. Statements are 1-2 sentences; each fact is one short sentence traceable to the input.
+  6. Actions with actor "system" were performed by the merchant's system (AgentProof), not by the agent.
   """
 
   def system, do: @system
 
-  def user(%{"dispute" => %{"reason" => reason}} = facts) do
+  @doc """
+  The user message: the dispute, guidance for its reason, and the facts as
+  JSON. `feedback` (from validation) asks the model to correct a rejected answer.
+  """
+  def user(%{"dispute" => %{"reason" => reason}} = facts, feedback \\ nil) do
     """
     The customer opened a PayPal dispute with reason "#{reason}". #{guidance(reason)}
 
@@ -25,6 +30,17 @@ defmodule AgentProof.AI.Prompt do
     #{Jason.encode!(facts, pretty: true)}
 
     Write the evidence package.
+    """ <> correction(feedback)
+  end
+
+  defp correction(nil), do: ""
+
+  defp correction(feedback) do
+    """
+
+    Your previous answer was rejected:
+    #{feedback}
+    Write a corrected evidence package. Use only values that appear in the case facts.
     """
   end
 

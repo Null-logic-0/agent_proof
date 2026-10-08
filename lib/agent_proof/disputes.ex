@@ -41,6 +41,15 @@ defmodule AgentProof.Disputes do
   def open_dispute(%Transaction{}, _attrs, _opts), do: {:error, :not_disputable}
 
   @doc """
+  Marks a dispute as having a validated evidence package.
+  """
+  def mark_evidence_ready(%Dispute{} = dispute) do
+    dispute
+    |> Ecto.Changeset.change(status: :evidence_ready)
+    |> Repo.update()
+  end
+
+  @doc """
   Loads a dispute with everything an investigation needs: its transaction,
   the authorization, the agent, and the evidence package (if any).
   """

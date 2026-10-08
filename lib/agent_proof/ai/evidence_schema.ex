@@ -29,7 +29,9 @@ defmodule AgentProof.AI.EvidenceSchema do
             "What the customer authorized the agent to do, and the merchant's budget check."
           ),
         "transaction_evidence" =>
-          section("The PayPal order and the agent's recorded actions, in order."),
+          section(
+            "The PayPal order and the agent's recorded actions, in order. Include the PayPal order ID."
+          ),
         "fulfillment_evidence" =>
           section("Whether and when the order was delivered. Say so if there is no record."),
         "ai_explanation" => %{

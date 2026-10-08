@@ -16,7 +16,8 @@ defmodule AgentProof.AI do
 
   `transaction` must have `authorization: :agent` preloaded, as returned
   inside `AgentProof.Disputes.get_case!/1`. Returns the provider's raw,
-  unvalidated evidence map.
+  unvalidated evidence map. `opts[:feedback]` asks the model to correct a
+  previously rejected answer.
   """
   def generate_evidence(transaction, dispute, opts \\ []) do
     facts = Transactions.reconstruct(transaction, dispute)
@@ -24,7 +25,7 @@ defmodule AgentProof.AI do
     generate(
       %{
         system: Prompt.system(),
-        prompt: Prompt.user(facts),
+        prompt: Prompt.user(facts, opts[:feedback]),
         schema: EvidenceSchema.json_schema(),
         facts: facts
       },
