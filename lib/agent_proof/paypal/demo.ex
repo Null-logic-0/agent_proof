@@ -15,7 +15,7 @@ defmodule AgentProof.PayPal.Demo do
 
   @impl true
   def capture_order("DEMO-ORDER-" <> reference_id = order_id, _opts) do
-    {:ok, %{order_id: order_id, capture_id: "DEMO-CAPTURE-" <> reference_id}}
+    {:ok, %{order_id: order_id, capture_id: "DEMO-CAPTURE-" <> reference_id, simulated: true}}
   end
 
   def capture_order(_order_id, _opts), do: {:error, :unknown_order}

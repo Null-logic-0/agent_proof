@@ -110,11 +110,12 @@ defmodule AgentProof.Transactions do
 
   defp capture(transaction, order_id, actions, opts) do
     case PayPal.capture_order(order_id, opts) do
-      {:ok, %{capture_id: capture_id}} ->
+      {:ok, %{capture_id: capture_id} = capture} ->
         captured =
           AgentAction.system(:capture_payment, %{
             "order_id" => order_id,
-            "capture_id" => capture_id
+            "capture_id" => capture_id,
+            "simulated" => Map.get(capture, :simulated, false)
           })
 
         finalize(

@@ -131,7 +131,8 @@ defmodule AgentProof.TransactionsTest do
 
       assert captured.details == %{
                "order_id" => "DEMO-ORDER-transaction-#{transaction.id}",
-               "capture_id" => "DEMO-CAPTURE-transaction-#{transaction.id}"
+               "capture_id" => "DEMO-CAPTURE-transaction-#{transaction.id}",
+               "simulated" => true
              }
 
       assert check.details == %{
@@ -175,6 +176,32 @@ defmodule AgentProof.TransactionsTest do
       assert "can't be blank" in errors_on(changeset).at
       assert Transactions.list_transactions() == []
     end
+  end
+
+  test "purchase/4 works end to end with the Sandbox adapter (stubbed HTTP)",
+       %{authorization: authorization} do
+    Req.Test.stub(AgentProof.PayPal.Sandbox, fn
+      %{request_path: "/v1/oauth2/token"} = conn ->
+        Req.Test.json(conn, %{"access_token" => "test-token"})
+
+      %{request_path: "/v2/checkout/orders"} = conn ->
+        conn
+        |> Plug.Conn.put_status(201)
+        |> Req.Test.json(%{"id" => "5O190127TN364715T", "status" => "CREATED"})
+    end)
+
+    assert {:ok, transaction} =
+             Transactions.purchase(authorization, product("189.99"), [],
+               adapter: AgentProof.PayPal.Sandbox
+             )
+
+    assert transaction.status == :completed
+    assert transaction.paypal_order_id == "5O190127TN364715T"
+
+    assert %AgentAction{action: :capture_payment} =
+             captured = List.last(transaction.agent_actions)
+
+    assert captured.details["simulated"] == true
   end
 
   describe "purchase/4 payment failures" do

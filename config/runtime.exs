@@ -40,6 +40,17 @@ if config_env() == :dev do
     ]
 end
 
+# Use the real PayPal Sandbox in dev when credentials are present
+# (run `source .env` before starting). Otherwise PayPal.Demo stays in use.
+if config_env() == :dev and System.get_env("PAYPAL_CLIENT_ID") do
+  config :agent_proof, :paypal_adapter, AgentProof.PayPal.Sandbox
+
+  config :agent_proof, AgentProof.PayPal.Sandbox,
+    base_url: "https://api-m.sandbox.paypal.com",
+    client_id: System.fetch_env!("PAYPAL_CLIENT_ID"),
+    client_secret: System.fetch_env!("PAYPAL_SECRET_KEY")
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

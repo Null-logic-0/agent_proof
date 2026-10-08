@@ -20,6 +20,13 @@ config :agent_proof, AgentProofWeb.Endpoint,
   secret_key_base: "dH2kpx8zsGKWT3P6x3crTUWBR3uWZNuDmW0iGivNlcGKVcSooHxT+3WvbvKHDD7A",
   server: false
 
+# PayPal Sandbox adapter tests answer its HTTP calls with Req.Test stubs.
+config :agent_proof, AgentProof.PayPal.Sandbox,
+  base_url: "https://paypal.test",
+  client_id: "test-client-id",
+  client_secret: "test-client-secret",
+  req_options: [plug: {Req.Test, AgentProof.PayPal.Sandbox}, retry: false]
+
 # In test we don't send emails
 config :agent_proof, AgentProof.Mailer, adapter: Swoosh.Adapters.Test
 

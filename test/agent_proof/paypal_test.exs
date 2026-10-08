@@ -20,7 +20,8 @@ defmodule AgentProof.PayPalTest do
                {:ok,
                 %{
                   order_id: "DEMO-ORDER-transaction-42",
-                  capture_id: "DEMO-CAPTURE-transaction-42"
+                  capture_id: "DEMO-CAPTURE-transaction-42",
+                  simulated: true
                 }}
     end
 
