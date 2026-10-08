@@ -27,6 +27,12 @@ config :agent_proof, AgentProof.PayPal.Sandbox,
   client_secret: "test-client-secret",
   req_options: [plug: {Req.Test, AgentProof.PayPal.Sandbox}, retry: false]
 
+# Ollama provider tests answer its HTTP calls with Req.Test stubs.
+config :agent_proof, AgentProof.AI.Ollama,
+  base_url: "http://ollama.test",
+  model: "test-model",
+  req_options: [plug: {Req.Test, AgentProof.AI.Ollama}, retry: false]
+
 # In test we don't send emails
 config :agent_proof, AgentProof.Mailer, adapter: Swoosh.Adapters.Test
 

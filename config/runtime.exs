@@ -51,6 +51,13 @@ if config_env() == :dev and System.get_env("PAYPAL_CLIENT_ID") do
     client_secret: System.fetch_env!("PAYPAL_SECRET_KEY")
 end
 
+# Local Ollama server and model for AI evidence in dev.
+if config_env() == :dev do
+  config :agent_proof, AgentProof.AI.Ollama,
+    base_url: System.get_env("OLLAMA_URL", "http://localhost:11434"),
+    model: System.get_env("OLLAMA_MODEL", "gemma3:4b")
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

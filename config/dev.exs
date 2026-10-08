@@ -75,3 +75,6 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# Use the local Ollama model for AI evidence in dev (settings in runtime.exs).
+config :agent_proof, :ai_provider, AgentProof.AI.Ollama
