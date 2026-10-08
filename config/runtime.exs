@@ -58,6 +58,19 @@ if config_env() == :dev do
     model: System.get_env("OLLAMA_MODEL", "llama3.2")
 end
 
+# Optional OpenAI provider, available only when OPENAI_API_KEY is set.
+# AI_PROVIDER=openai makes it the dev default instead of Ollama.
+if config_env() == :dev and System.get_env("OPENAI_API_KEY") do
+  config :agent_proof, AgentProof.AI.OpenAI,
+    base_url: "https://api.openai.com",
+    api_key: System.fetch_env!("OPENAI_API_KEY"),
+    model: System.get_env("OPENAI_MODEL", "gpt-6-luna")
+
+  if System.get_env("AI_PROVIDER") == "openai" do
+    config :agent_proof, :ai_provider, AgentProof.AI.OpenAI
+  end
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

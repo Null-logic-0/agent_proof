@@ -33,6 +33,13 @@ config :agent_proof, AgentProof.AI.Ollama,
   model: "test-model",
   req_options: [plug: {Req.Test, AgentProof.AI.Ollama}, retry: false]
 
+# OpenAI provider tests answer its HTTP calls with Req.Test stubs.
+config :agent_proof, AgentProof.AI.OpenAI,
+  base_url: "https://openai.test",
+  api_key: "test-openai-key",
+  model: "test-model",
+  req_options: [plug: {Req.Test, AgentProof.AI.OpenAI}, retry: false]
+
 # In test we don't send emails
 config :agent_proof, AgentProof.Mailer, adapter: Swoosh.Adapters.Test
 
