@@ -12,9 +12,10 @@ defmodule AgentProof.Evidence.Section do
 
   @doc """
   Validates one evidence section. With `case_facts`, every amount and
-  identifier must also be grounded in them.
+  identifier must also be grounded in them. `required_mentions` is a list of
+  `{label, value}` the section must quote, e.g. `{"the PayPal order ID", id}`.
   """
-  def changeset(section, attrs, case_facts \\ nil) do
+  def changeset(section, attrs, case_facts \\ nil, required_mentions \\ []) do
     section
     |> cast(attrs, [:statement, :facts])
     |> validate_required([:statement])
@@ -27,5 +28,19 @@ defmodule AgentProof.Evidence.Section do
     end)
     |> Grounding.validate(:statement, case_facts)
     |> Grounding.validate(:facts, case_facts)
+    |> validate_mentions(required_mentions)
+  end
+
+  defp validate_mentions(changeset, []), do: changeset
+
+  defp validate_mentions(changeset, required_mentions) do
+    text =
+      Enum.join([get_field(changeset, :statement) || "" | get_field(changeset, :facts)], "\n")
+
+    Enum.reduce(required_mentions, changeset, fn {label, value}, changeset ->
+      if String.contains?(text, value),
+        do: changeset,
+        else: add_error(changeset, :statement, "must include #{label} #{value}")
+    end)
   end
 end

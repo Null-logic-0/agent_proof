@@ -48,7 +48,17 @@ defmodule AgentProof.Evidence.Package do
 
   defp cast_sections(changeset, facts) do
     Enum.reduce(@sections, changeset, fn section, changeset ->
-      cast_embed(changeset, section, required: true, with: &Section.changeset(&1, &2, facts))
+      cast_embed(changeset, section,
+        required: true,
+        with: &Section.changeset(&1, &2, facts, required_mentions(section, facts))
+      )
     end)
   end
+
+  # Completeness: values a section must quote from the facts.
+  defp required_mentions(:transaction_evidence, %{"transaction" => %{"paypal_order_id" => id}})
+       when is_binary(id),
+       do: [{"the PayPal order ID", id}]
+
+  defp required_mentions(_section, _facts), do: []
 end

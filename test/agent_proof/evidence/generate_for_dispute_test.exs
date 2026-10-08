@@ -17,6 +17,14 @@ defmodule AgentProof.Evidence.GenerateForDisputeTest do
     answer
   end
 
+  # Grounded, but the transaction evidence never quotes the PayPal order ID.
+  defp incomplete_answer(dispute) do
+    put_in(valid_answer(dispute), ["transaction_evidence"], %{
+      "statement" => "The agent completed the purchase through PayPal.",
+      "facts" => []
+    })
+  end
+
   defp ungrounded_answer(dispute) do
     Map.update!(valid_answer(dispute), "summary", &(&1 <> " A refund of 249.99 was issued."))
   end
@@ -72,6 +80,23 @@ defmodule AgentProof.Evidence.GenerateForDisputeTest do
                "mentions 249.99, not found in the case facts"
              ]
     end
+
+    test "requires the transaction evidence to quote the PayPal order ID", %{dispute: dispute} do
+      order_id = dispute.transaction.paypal_order_id
+
+      assert errors_on(ai_changeset(dispute, incomplete_answer(dispute))).transaction_evidence.statement ==
+               ["must include the PayPal order ID #{order_id}"]
+    end
+
+    test "accepts the order ID in a fact instead of the statement", %{dispute: dispute} do
+      order_id = dispute.transaction.paypal_order_id
+
+      answer =
+        incomplete_answer(dispute)
+        |> put_in(["transaction_evidence", "facts"], ["PayPal order #{order_id} was created."])
+
+      assert ai_changeset(dispute, answer).valid?
+    end
   end
 
   describe "generate_for_dispute/2" do
@@ -108,6 +133,18 @@ defmodule AgentProof.Evidence.GenerateForDisputeTest do
 
       assert Evidence.get_package_by_dispute(dispute) == nil
       assert Disputes.get_dispute!(dispute.id).status == :open
+    end
+
+    test "retries an incomplete answer, naming the missing order ID", %{dispute: dispute} do
+      assert {:ok, _package} =
+               generate(dispute, [{:ok, incomplete_answer(dispute)}, {:ok, valid_answer(dispute)}])
+
+      assert_received {:prompt, _first}
+      assert_received {:prompt, second_prompt}
+
+      assert second_prompt =~
+               "- transaction_evidence.statement must include the PayPal order ID " <>
+                 dispute.transaction.paypal_order_id
     end
 
     test "retries an answer that was not JSON", %{dispute: dispute} do
