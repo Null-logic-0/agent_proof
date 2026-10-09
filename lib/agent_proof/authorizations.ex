@@ -5,6 +5,7 @@ defmodule AgentProof.Authorizations do
 
   import Ecto.Query, warn: false
 
+  alias Pagex
   alias AgentProof.{Agents, Repo}
   alias AgentProof.Agents.Agent
   alias AgentProof.Authorizations.Authorization
@@ -21,12 +22,47 @@ defmodule AgentProof.Authorizations do
 
   @doc """
   Lists authorizations, newest first, with their agent and transactions.
+
+  Without `params` it returns every authorization. With pagination params
+  (`%{"page" => "2", "page_size" => "20"}`) it returns `{authorizations, meta}`
+  from `Pagex.paginate/3`.
   """
-  def list_authorizations do
-    Authorization
-    |> order_by(desc: :id)
-    |> Repo.all()
-    |> preload_activity()
+  def list_authorizations(params \\ nil) do
+    # Preloads are part of the query (not Repo.preload/2, which needs loaded
+    # records), so they also apply to each page Pagex fetches.
+    query =
+      from(a in Authorization,
+        order_by: [desc: a.id],
+        preload: [agent: [], transactions: ^from(t in Transaction, order_by: [desc: t.id])]
+      )
+
+    case params do
+      nil -> Repo.all(query)
+      params -> Pagex.paginate(query, params, Repo)
+    end
+  end
+
+  @doc """
+  Lists up to `limit` authorizations older than `before_id` (from the newest
+  when `nil`), newest first, with activity preloaded. Returns
+  `{authorizations, more?}`.
+
+  Keyset pagination: each load continues from the last id the caller has, so
+  adding or deleting agents between loads never skips or repeats one (as an
+  offset would). One extra row is fetched to learn whether more exist.
+  """
+  def list_authorizations_page(before_id, limit) do
+    query =
+      from(a in Authorization,
+        order_by: [desc: a.id],
+        limit: ^(limit + 1),
+        preload: [agent: [], transactions: ^from(t in Transaction, order_by: [desc: t.id])]
+      )
+
+    query = if before_id, do: where(query, [a], a.id < ^before_id), else: query
+    rows = Repo.all(query)
+
+    {Enum.take(rows, limit), length(rows) > limit}
   end
 
   @doc """

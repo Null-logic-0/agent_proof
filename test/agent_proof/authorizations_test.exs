@@ -242,6 +242,59 @@ defmodule AgentProof.AuthorizationsTest do
     end
   end
 
+  describe "list_authorizations_page/2" do
+    setup do
+      # One agent per authorization, as the dashboard creates them; oldest first.
+      %{
+        authorizations:
+          for(n <- 1..5, do: authorization_fixture(agent_fixture(%{name: "Bot #{n}"})))
+      }
+    end
+
+    test "pages newest first and says whether more exist", %{authorizations: auths} do
+      [a1, a2, a3, a4, a5] = auths
+
+      {page_one, more?} = Authorizations.list_authorizations_page(nil, 3)
+      assert Enum.map(page_one, & &1.id) == [a5.id, a4.id, a3.id]
+      assert more?
+      assert hd(page_one).agent.name == "Bot 5"
+
+      {page_two, more?} = Authorizations.list_authorizations_page(a3.id, 3)
+      assert Enum.map(page_two, & &1.id) == [a2.id, a1.id]
+      refute more?
+    end
+
+    test "agents added or deleted between loads are never skipped or repeated",
+         %{authorizations: auths} do
+      [a1, a2, a3, _a4, _a5] = auths
+      {_page_one, _more?} = Authorizations.list_authorizations_page(nil, 3)
+
+      # A new agent arrives and an already-shown one is deleted.
+      authorization_fixture(agent_fixture(%{name: "Newcomer"}))
+      {:ok, _} = Authorizations.delete_agent(Repo.preload(a3, :agent).agent)
+
+      {page_two, _more?} = Authorizations.list_authorizations_page(a3.id, 3)
+      assert Enum.map(page_two, & &1.id) == [a2.id, a1.id]
+    end
+  end
+
+  test "list_authorizations/1 paginates and still preloads activity" do
+    agent = agent_fixture()
+    older = authorization_fixture(agent)
+    newer = authorization_fixture(agent)
+    transaction_fixture(newer)
+
+    {[only], meta} = Authorizations.list_authorizations(%{"page" => "1", "page_size" => "1"})
+
+    assert only.id == newer.id
+    assert only.agent.id == agent.id
+    assert length(only.transactions) == 1
+    assert %{total: 2, total_pages: 2} = meta
+
+    {[last], _meta} = Authorizations.list_authorizations(%{"page" => "2", "page_size" => "1"})
+    assert last.id == older.id
+  end
+
   test "list_authorizations/0 returns newest first with activity preloaded" do
     agent = agent_fixture()
     older = authorization_fixture(agent)

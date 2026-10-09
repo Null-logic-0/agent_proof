@@ -1,0 +1,69 @@
+<Layouts.app {assigns}>
+  <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <.link navigate={~p"/"} class="link link-hover text-sm text-base-content/60">
+        ← Dashboard
+      </.link>
+      <h1 class="mt-1 text-2xl font-semibold tracking-tight">{@page_title}</h1>
+      <p class="mt-1 text-sm text-base-content/70">
+        Every purchase your agents made, newest first.
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span
+        :if={@page.ok? && @page.loading}
+        id="history-reloading"
+        class="loading loading-spinner loading-sm text-base-content/50"
+        aria-label="Loading page"
+      />
+      <span :if={@page.ok? && @page.result.total > 0} id="history-total" class="badge badge-soft">
+        {@page.result.total} transactions
+      </span>
+    </div>
+  </div>
+
+  <.async_result :let={meta} assign={@page}>
+    <:loading>
+      <.loading_state id="history-loading" rows={6} />
+    </:loading>
+
+    <:failed :let={_failure}>
+      <.error_state
+        id="history-error"
+        title="Couldn't load the transaction history"
+        message="Something went wrong on our side. Your records are safe; please try again."
+        retry="retry"
+      />
+    </:failed>
+
+    <.empty_state
+      :if={meta.total == 0}
+      id="history-empty"
+      icon="hero-receipt-percent"
+      title="No transactions yet"
+      message="Purchases appear here once an agent shops."
+    >
+      <:actions>
+        <.link navigate={~p"/"} class="btn btn-sm btn-primary">Go to the dashboard</.link>
+      </:actions>
+    </.empty_state>
+
+    <.empty_state
+      :if={meta.total > 0 && meta.count == 0}
+      id="history-page-empty"
+      icon="hero-document-magnifying-glass"
+      title={"There is no page #{meta.page}"}
+      message={"The history has #{meta.total_pages} #{if meta.total_pages == 1, do: "page", else: "pages"}."}
+    >
+      <:actions>
+        <.link patch={~p"/history"} class="btn btn-sm btn-outline">Back to page 1</.link>
+      </:actions>
+    </.empty_state>
+
+    <div :if={meta.count > 0} class={["transition-opacity", @page.loading && "opacity-50"]}>
+      <.transaction_table id="transactions" rows={@streams.transactions} />
+    </div>
+
+    <.pagination meta={meta} page_path={&page_path/1} />
+  </.async_result>
+</Layouts.app>

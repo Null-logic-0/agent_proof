@@ -1,0 +1,44 @@
+<Layouts.app {assigns}>
+  <div class="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+    <.link navigate={~p"/"} class="link link-hover text-base-content/60">← Dashboard</.link>
+    <.link navigate={~p"/history"} class="link link-hover text-base-content/60">
+      Transaction history
+    </.link>
+  </div>
+
+  <.case_header transaction={@transaction} />
+
+  <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <section class="card border border-base-300 bg-base-100 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-base">Timeline</h2>
+        <.timeline events={@timeline} />
+      </div>
+    </section>
+
+    <%!-- On phones the actions come first; on wide screens they sit beside the timeline. --%>
+    <aside class="order-first space-y-4 lg:sticky lg:top-6 lg:order-last">
+      <.case_actions
+        transaction={@transaction}
+        dispute_form={@dispute_form}
+        investigating={@investigating}
+        ai_provider={@ai_provider}
+      />
+
+      <.loading_state :if={@investigating} id="investigation-loading" rows={3} />
+
+      <.error_state
+        :if={@investigation_error && !@investigating}
+        id="investigation-error"
+        title="The AI investigation failed"
+        message={@investigation_error}
+        retry="investigate"
+      />
+
+      <.evidence_summary
+        :if={@transaction.dispute && @transaction.dispute.evidence && !@investigating}
+        evidence={@transaction.dispute.evidence}
+      />
+    </aside>
+  </div>
+</Layouts.app>

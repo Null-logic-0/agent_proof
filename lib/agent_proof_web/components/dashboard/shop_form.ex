@@ -21,6 +21,8 @@ defmodule AgentProofWeb.ShopForm do
         <.input
           field={@form[:query]}
           id={"shop-query-#{@authorization_id}"}
+          list="catalog-products"
+          autocomplete="off"
           placeholder="What should the agent look for?"
         />
       </div>

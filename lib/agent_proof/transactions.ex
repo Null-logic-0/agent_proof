@@ -18,7 +18,35 @@ defmodule AgentProof.Transactions do
     |> Repo.all()
   end
 
+  @doc """
+  One page of all transactions, newest first, each with its authorization and
+  agent preloaded. `params` are Pagex pagination params, e.g.
+  `%{"page" => "2", "page_size" => "20"}`. Returns `{transactions, meta}`.
+  """
+  def list_transaction_history(params) do
+    Transaction
+    |> order_by(desc: :id)
+    |> preload(authorization: :agent)
+    |> Pagex.paginate(params, Repo)
+  end
+
   def get_transaction!(id), do: Repo.get!(Transaction, id)
+
+  @doc """
+  Loads a transaction with everything its case page needs: the authorization
+  and agent, and the dispute with its evidence package.
+  """
+  def get_case!(id) do
+    Transaction
+    |> Repo.get!(id)
+    |> Repo.preload([authorization: :agent, dispute: :evidence], force: true)
+  end
+
+  @doc """
+  The transaction's story as display events, oldest first. Pure; takes the
+  struct from `get_case!/1`.
+  """
+  defdelegate timeline(transaction), to: AgentProof.Transactions.Timeline, as: :build
 
   @doc """
   Rebuilds a disputed transaction as plain facts, including computed checks.

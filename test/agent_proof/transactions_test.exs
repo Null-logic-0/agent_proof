@@ -316,6 +316,31 @@ defmodule AgentProof.TransactionsTest do
     end
   end
 
+  describe "list_transaction_history/1" do
+    test "returns one page, newest first, with the agent preloaded",
+         %{authorization: authorization} do
+      [first, second, third] = for _ <- 1..3, do: transaction_fixture(authorization)
+
+      {page_one, meta} =
+        Transactions.list_transaction_history(%{"page" => "1", "page_size" => "2"})
+
+      assert Enum.map(page_one, & &1.id) == [third.id, second.id]
+      assert hd(page_one).authorization.agent.name == "ShopBot"
+      assert %{page: 1, total: 3, total_pages: 2, has_next: true, has_prev: false} = meta
+
+      {page_two, meta} =
+        Transactions.list_transaction_history(%{"page" => "2", "page_size" => "2"})
+
+      assert Enum.map(page_two, & &1.id) == [first.id]
+      assert %{has_next: false, has_prev: true} = meta
+    end
+
+    test "an empty history has zero pages" do
+      assert {[], %{total: 0, total_pages: 0}} =
+               Transactions.list_transaction_history(%{"page" => "1"})
+    end
+  end
+
   test "list_transactions/0 returns newest first", %{authorization: authorization} do
     older = transaction_fixture(authorization)
     newer = transaction_fixture(authorization)

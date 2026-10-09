@@ -12,12 +12,18 @@ defmodule AgentProofWeb.TransactionList do
     ~H"""
     <ul :if={@transactions != []} class="divide-y divide-base-200 border-t border-base-200">
       <li
-        :for={transaction <- @transactions}
+        :for={transaction <- Enum.take(@transactions, 5)}
         id={"transaction-#{transaction.id}"}
         class="flex flex-col gap-1.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3"
       >
         <div class="min-w-0">
-          <p class="font-medium sm:truncate">{transaction.product_name}</p>
+          <.link
+            navigate={~p"/transactions/#{transaction.id}"}
+            id={"case-link-#{transaction.id}"}
+            class="link link-hover block font-medium sm:truncate"
+          >
+            {transaction.product_name}
+          </.link>
           <p class="truncate font-mono text-xs text-base-content/50">
             {transaction.paypal_order_id || "no PayPal order"}
           </p>
@@ -30,6 +36,14 @@ defmodule AgentProofWeb.TransactionList do
         </div>
       </li>
     </ul>
+    <div :if={length(@transactions) >= 5} class="mt-4 flex justify-center">
+      <.link
+        class="btn btn-outline btn-sm btn-info"
+        navigate={~p"/history"}
+      >
+        View transaction history
+      </.link>
+    </div>
     """
   end
 end

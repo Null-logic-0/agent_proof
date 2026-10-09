@@ -40,17 +40,21 @@ defmodule AgentProof.Catalog do
   def list_products, do: @products
 
   @doc """
-  Returns products whose name or category contains `query`, ignoring case.
+  Returns products whose name or category contains every word of `query`,
+  in any order and ignoring case: "usb cable" finds the "USB-C Cable".
   """
   def search(query) do
-    case query |> String.trim() |> String.downcase() do
-      "" ->
+    case words(query) do
+      [] ->
         []
 
-      query ->
+      words ->
         Enum.filter(@products, fn product ->
-          String.contains?(String.downcase("#{product.name} #{product.category}"), query)
+          text = String.downcase("#{product.name} #{product.category}")
+          Enum.all?(words, &String.contains?(text, &1))
         end)
     end
   end
+
+  defp words(query), do: query |> String.downcase() |> String.split(~r/[^a-z0-9]+/, trim: true)
 end

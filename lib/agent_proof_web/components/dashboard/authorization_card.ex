@@ -7,7 +7,6 @@ defmodule AgentProofWeb.AuthorizationCard do
 
   attr :id, :string, required: true
   attr :card, :map, required: true
-  attr :shop_form, Phoenix.HTML.Form, required: true
 
   def authorization_card(assigns) do
     ~H"""
@@ -70,7 +69,7 @@ defmodule AgentProofWeb.AuthorizationCard do
           currency={@card.authorization.currency}
         />
 
-        <.shop_form form={@shop_form} authorization_id={@card.id} />
+        <.shop_form form={@card.shop_form} authorization_id={@card.id} />
 
         <.transaction_list transactions={@card.authorization.transactions} />
       </div>
