@@ -2,7 +2,8 @@ defmodule AgentProof.PayPal.Sandbox do
   @moduledoc """
   PayPal adapter for the PayPal Sandbox REST API.
 
-  Real: the OAuth client-credentials token and order creation.
+  Real: the OAuth client-credentials token, order creation, and evidence
+  submission (for disputes PayPal knows).
 
   Simulated: capture. PayPal only captures orders that a buyer has approved;
   an agent paying with no buyer present needs PayPal Vault, which is out of
@@ -56,6 +57,24 @@ defmodule AgentProof.PayPal.Sandbox do
   @impl true
   def capture_order(order_id, _opts) do
     {:ok, %{order_id: order_id, capture_id: "SIMULATED-CAPTURE-" <> order_id, simulated: true}}
+  end
+
+  @doc """
+  Real provide-evidence call: multipart/form-data with the JSON payload in a
+  part named `input`. PayPal accepts it only while the dispute is
+  `WAITING_FOR_SELLER_RESPONSE`.
+  """
+  @impl true
+  def submit_evidence(dispute_id, payload, _opts) do
+    with {:ok, token} <- access_token(),
+         {:ok, _body} <-
+           request(:post, "/v1/customer/disputes/:id/provide-evidence",
+             auth: {:bearer, token},
+             path_params: [id: dispute_id],
+             form_multipart: [input: {Jason.encode!(payload), content_type: "application/json"}]
+           ) do
+      {:ok, %{simulated: false}}
+    end
   end
 
   @doc """

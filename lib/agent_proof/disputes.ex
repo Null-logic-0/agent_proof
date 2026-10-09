@@ -41,6 +41,19 @@ defmodule AgentProof.Disputes do
   def open_dispute(%Transaction{}, _attrs, _opts), do: {:error, :not_disputable}
 
   @doc """
+  Marks a dispute as submitted to PayPal. Final: nothing changes a submitted
+  dispute or its evidence afterwards.
+  """
+  def mark_submitted(%Dispute{} = dispute) do
+    dispute
+    |> Ecto.Changeset.change(
+      status: :submitted,
+      submitted_at: DateTime.utc_now() |> DateTime.truncate(:second)
+    )
+    |> Repo.update()
+  end
+
+  @doc """
   Marks a dispute as having a validated evidence package.
   """
   def mark_evidence_ready(%Dispute{} = dispute) do

@@ -62,6 +62,35 @@ defmodule AgentProof.Transactions.TimelineTest do
     assert List.last(events).id == "fulfillment"
   end
 
+  test "the merchant's approval appears while the evidence is approved" do
+    dispute = disputed_case_fixture()
+    {:ok, package} = Evidence.generate_for_dispute(dispute.id)
+    ids = fn -> dispute.transaction.id |> timeline() |> Enum.map(& &1.id) end
+
+    refute "approval" in ids.()
+
+    {:ok, approved} = Evidence.approve(package)
+
+    assert %{actor: :merchant, title: "Merchant approved the evidence"} =
+             Enum.find(timeline(dispute.transaction.id), &(&1.id == "approval"))
+
+    {:ok, _} = Evidence.withdraw_approval(approved)
+    refute "approval" in ids.()
+  end
+
+  test "the submission to PayPal ends the story, flagged as simulated" do
+    dispute = disputed_case_fixture()
+    {:ok, package} = Evidence.generate_for_dispute(dispute.id)
+    {:ok, approved} = Evidence.approve(package)
+    {:ok, _} = Evidence.submit(approved)
+
+    assert %{actor: :merchant, simulated?: true} =
+             submission =
+             Enum.find(timeline(dispute.transaction.id), &(&1.id == "submission"))
+
+    assert submission.details =~ "DEMO-PP-D-#{dispute.transaction.id} · simulated submission"
+  end
+
   test "a failed payment shows as an error" do
     capture_log(fn -> buy_headphones(adapter: TestClient, fail: :create) end)
     [failed] = Transactions.list_transactions()

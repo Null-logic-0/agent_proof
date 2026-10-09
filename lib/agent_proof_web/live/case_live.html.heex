@@ -34,11 +34,24 @@
         message={@investigation_error}
         retry="investigate"
       />
-
-      <.evidence_summary
-        :if={@transaction.dispute && @transaction.dispute.evidence && !@investigating}
-        evidence={@transaction.dispute.evidence}
-      />
     </aside>
   </div>
+
+  <.evidence_review
+    :if={@transaction.dispute && @transaction.dispute.evidence && !@investigating}
+    evidence={@transaction.dispute.evidence}
+    facts={@facts}
+    submitted={@transaction.dispute.status == :submitted}
+    preparing={@submission != nil}
+  />
+
+  <.submission_panel :if={@submission} submission={@submission} submitting={@submitting} />
+
+  <.error_state
+    :if={@submission_error && !@submitting}
+    id="submission-error"
+    title="The submission didn't go through"
+    message={@submission_error}
+    retry="submit_evidence"
+  />
 </Layouts.app>

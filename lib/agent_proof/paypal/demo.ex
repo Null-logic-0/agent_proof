@@ -22,4 +22,7 @@ defmodule AgentProof.PayPal.Demo do
   end
 
   def capture_order(_order_id, _opts), do: {:error, :unknown_order}
+
+  @impl true
+  def submit_evidence(_dispute_id, _payload, _opts), do: {:ok, %{simulated: true}}
 end

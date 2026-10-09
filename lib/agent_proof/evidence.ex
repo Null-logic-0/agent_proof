@@ -3,8 +3,9 @@ defmodule AgentProof.Evidence do
   Evidence packages generated for disputes.
   """
 
-  alias AgentProof.{AI, Disputes, Repo, Transactions}
+  alias AgentProof.{AI, Disputes, PayPal, Repo, Transactions}
   alias AgentProof.Disputes.Dispute
+  alias AgentProof.PayPal.EvidencePayload
   alias AgentProof.Evidence.Package
 
   @attempts 2
@@ -36,6 +37,81 @@ defmodule AgentProof.Evidence do
       save(changeset, dispute)
     end
   end
+
+  @doc """
+  Records the merchant's approval of an evidence package. Only approved
+  evidence can be submitted to PayPal. Refused once the dispute is submitted.
+  Regenerating the evidence replaces the package and clears the approval.
+  """
+  def approve(%Package{} = package) do
+    package = Repo.preload(package, :dispute)
+
+    with :ok <- ensure_not_submitted(package.dispute) do
+      package
+      |> Ecto.Changeset.change(approved_at: DateTime.utc_now() |> DateTime.truncate(:second))
+      |> Repo.update()
+    end
+  end
+
+  @doc """
+  Withdraws the merchant's approval, e.g. to look at the evidence again.
+  """
+  def withdraw_approval(%Package{} = package) do
+    package = Repo.preload(package, :dispute)
+
+    with :ok <- ensure_not_submitted(package.dispute) do
+      package |> Ecto.Changeset.change(approved_at: nil) |> Repo.update()
+    end
+  end
+
+  @doc """
+  What submitting this package would send: the PayPal dispute id, the exact
+  provide-evidence payload, and whether the submission is simulated. The
+  preview and `submit/2` use the same function, so the merchant sees exactly
+  what is sent.
+  """
+  def prepare_submission(%Package{} = package) do
+    package = Repo.preload(package, dispute: :transaction)
+    dispute = package.dispute
+
+    %{
+      dispute_id: dispute.paypal_dispute_id,
+      payload: EvidencePayload.build(package, dispute.transaction),
+      simulated?: Dispute.simulated?(dispute)
+    }
+  end
+
+  @doc """
+  Submits approved evidence to PayPal and marks the dispute submitted, which
+  is final.
+
+  PayPal is called outside any database transaction. On failure the dispute
+  stays approved. Disputes PayPal doesn't know (`DEMO-PP-D-` ids) always go
+  to `PayPal.Demo`, whatever adapter is configured; an explicit `:adapter`
+  option still wins (tests).
+  """
+  def submit(%Package{} = package, opts \\ []) do
+    package = Repo.preload(package, dispute: :transaction)
+
+    with :ok <- ensure_not_submitted(package.dispute),
+         :ok <- ensure_approved(package) do
+      submission = prepare_submission(package)
+
+      opts =
+        if submission.simulated?,
+          do: Keyword.put_new(opts, :adapter, PayPal.Demo),
+          else: opts
+
+      with {:ok, %{simulated: simulated?}} <-
+             PayPal.submit_evidence(submission.dispute_id, submission.payload, opts),
+           {:ok, dispute} <- Disputes.mark_submitted(package.dispute) do
+        {:ok, %{dispute: dispute, simulated?: simulated?}}
+      end
+    end
+  end
+
+  defp ensure_approved(%Package{approved_at: nil}), do: {:error, :not_approved}
+  defp ensure_approved(%Package{}), do: :ok
 
   defp ensure_not_submitted(%Dispute{status: :submitted}), do: {:error, :already_submitted}
   defp ensure_not_submitted(%Dispute{}), do: :ok
@@ -110,7 +186,8 @@ defmodule AgentProof.Evidence do
     Repo.transact(fn ->
       with {:ok, package} <-
              Repo.insert(changeset,
-               on_conflict: {:replace_all_except, [:id, :dispute_id, :inserted_at]},
+               # A regenerated package is new: fresh inserted_at, approval cleared.
+               on_conflict: {:replace_all_except, [:id, :dispute_id]},
                conflict_target: :dispute_id,
                returning: true
              ),

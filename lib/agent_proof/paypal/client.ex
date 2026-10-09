@@ -27,4 +27,12 @@ defmodule AgentProof.PayPal.Client do
 
   @callback capture_order(order_id :: String.t(), opts :: keyword()) ::
               {:ok, capture()} | {:error, term()}
+
+  @doc """
+  Sends evidence for a dispute (PayPal's provide-evidence). `payload` is the
+  JSON body built by `AgentProof.PayPal.EvidencePayload`. `simulated: true`
+  means nothing was sent to PayPal.
+  """
+  @callback submit_evidence(dispute_id :: String.t(), payload :: map(), opts :: keyword()) ::
+              {:ok, %{simulated: boolean()}} | {:error, term()}
 end

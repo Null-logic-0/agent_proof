@@ -13,6 +13,8 @@ defmodule AgentProof.Evidence.Package do
     embeds_one :fulfillment_evidence, Section
     field :ai_explanation, :string
     field :ai_provider, :string
+    # Set only by AgentProof.Evidence.approve/1, never cast from input.
+    field :approved_at, :utc_datetime
 
     belongs_to :dispute, AgentProof.Disputes.Dispute
 

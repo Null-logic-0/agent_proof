@@ -71,7 +71,7 @@ defmodule AgentProofWeb.CaseActions do
               class="btn btn-sm btn-warning w-full"
               phx-disable-with="Opening…"
             >
-              <.icon name="hero-flag" class="size-4" /> Customer opens a dispute
+              <.icon name="hero-flag" class="size-4" /> Dispute opened
               <span class="badge badge-ghost badge-xs">simulated</span>
             </.button>
           </.form>
@@ -88,6 +88,10 @@ defmodule AgentProofWeb.CaseActions do
             class="btn btn-sm btn-primary mt-2 w-full"
             phx-click="investigate"
             disabled={@investigating}
+            data-confirm={
+              approved?(@transaction) &&
+                "Running the investigation again replaces the evidence and discards your approval."
+            }
           >
             <span :if={@investigating} class="loading loading-spinner loading-xs" />
             <.icon :if={!@investigating} name="hero-sparkles" class="size-4" />
@@ -101,8 +105,42 @@ defmodule AgentProofWeb.CaseActions do
             <span :if={@investigating}>Usually 5–15 seconds · </span>with {@ai_provider}
           </p>
         </div>
+
+        <div :if={@transaction.dispute && @transaction.dispute.evidence}>
+          <p class="text-xs font-medium uppercase tracking-wide text-base-content/50">
+            4 · Merchant approval
+          </p>
+          <p :if={approved?(@transaction)} class="mt-1 flex items-center gap-1 text-sm">
+            <.icon name="hero-check-circle" class="size-4 text-success" /> Approved
+          </p>
+          <p
+            :if={!approved?(@transaction) && @transaction.dispute.status != :submitted}
+            class="mt-1 text-sm text-base-content/70"
+          >
+            Review the evidence below, then approve it.
+          </p>
+        </div>
+
+        <div :if={@transaction.dispute && @transaction.dispute.submitted_at}>
+          <p class="text-xs font-medium uppercase tracking-wide text-base-content/50">
+            5 · PayPal
+          </p>
+          <p id="case-submitted" class="mt-1 flex items-center gap-1 text-sm">
+            <.icon name="hero-paper-airplane" class="size-4 text-info" />
+            Submitted {Calendar.strftime(@transaction.dispute.submitted_at, "%b %-d, %H:%M")}
+            <span
+              :if={AgentProof.Disputes.Dispute.simulated?(@transaction.dispute)}
+              class="badge badge-ghost badge-xs"
+            >
+              simulated
+            </span>
+          </p>
+        </div>
       </div>
     </section>
     """
   end
+
+  defp approved?(%{dispute: %{evidence: %{approved_at: %DateTime{}}}}), do: true
+  defp approved?(_transaction), do: false
 end

@@ -13,7 +13,7 @@ defmodule AgentProof.Transactions.Timeline do
         details: "..." | nil, status: :ok | :warning | :error, simulated?: false}
 
   Actors: `:customer`, `:agent`, `:system` (AgentProof itself), `:paypal`,
-  `:carrier`, `:ai`.
+  `:carrier`, `:ai`, `:merchant`.
   """
 
   alias AgentProof.Agents.Agent
@@ -126,16 +126,44 @@ defmodule AgentProof.Transactions.Timeline do
         simulated?: true
       )
 
-    [opened | evidence_events(dispute.evidence)]
+    [opened | evidence_events(dispute.evidence)] ++ submission_events(dispute)
+  end
+
+  defp submission_events(%{submitted_at: nil}), do: []
+
+  defp submission_events(dispute) do
+    simulated? = AgentProof.Disputes.Dispute.simulated?(dispute)
+
+    [
+      event("submission", dispute.submitted_at, :merchant,
+        title: "Evidence submitted to PayPal",
+        details:
+          "Dispute #{dispute.paypal_dispute_id}" <>
+            if(simulated?, do: " · simulated submission", else: ""),
+        simulated?: simulated?
+      )
+    ]
   end
 
   defp evidence_events(nil), do: []
 
   defp evidence_events(evidence) do
-    [
-      event("evidence", evidence.updated_at, :ai,
+    written =
+      event("evidence", evidence.inserted_at, :ai,
         title: "AI reconstructed the transaction and wrote the evidence",
         details: "Validated and saved · #{evidence.ai_provider}"
+      )
+
+    [written | approval_events(evidence)]
+  end
+
+  defp approval_events(%{approved_at: nil}), do: []
+
+  defp approval_events(%{approved_at: approved_at}) do
+    [
+      event("approval", approved_at, :merchant,
+        title: "Merchant approved the evidence",
+        details: "Ready to submit to PayPal"
       )
     ]
   end

@@ -47,6 +47,7 @@ defmodule AgentProofWeb.Timeline do
   defp actor_icon(:paypal), do: "hero-credit-card"
   defp actor_icon(:carrier), do: "hero-truck"
   defp actor_icon(:ai), do: "hero-sparkles"
+  defp actor_icon(:merchant), do: "hero-building-storefront"
 
   defp actor_label(:customer), do: "Customer"
   defp actor_label(:agent), do: "Agent"
@@ -54,11 +55,13 @@ defmodule AgentProofWeb.Timeline do
   defp actor_label(:paypal), do: "PayPal"
   defp actor_label(:carrier), do: "Carrier"
   defp actor_label(:ai), do: "AI"
+  defp actor_label(:merchant), do: "Merchant"
 
   defp actor_style(%{status: :error}), do: "bg-error/15 text-error"
   defp actor_style(%{status: :warning}), do: "bg-warning/15 text-warning"
   defp actor_style(%{actor: :agent}), do: "bg-primary/15 text-primary"
   defp actor_style(%{actor: :system}), do: "bg-success/15 text-success"
   defp actor_style(%{actor: :ai}), do: "bg-secondary/15 text-secondary"
+  defp actor_style(%{actor: :merchant}), do: "bg-success/15 text-success"
   defp actor_style(_event), do: "bg-base-200 text-base-content/70"
 end

@@ -104,6 +104,40 @@ defmodule AgentProof.PayPal.SandboxTest do
               }}
   end
 
+  describe "submit_evidence/3" do
+    @evidence_payload %{"evidences" => [%{"evidence_type" => "OTHER", "notes" => "Authorized."}]}
+
+    test "sends the JSON payload as the multipart `input` part, with the bearer token" do
+      stub_paypal(fn conn ->
+        assert conn.method == "POST"
+        assert conn.request_path == "/v1/customer/disputes/PP-D-12345/provide-evidence"
+        assert header(conn, "authorization") == "Bearer test-token"
+        assert header(conn, "content-type") =~ "multipart/form-data"
+
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        assert body =~ ~s(name="input")
+        assert body =~ "content-type: application/json"
+        assert body =~ Jason.encode!(@evidence_payload)
+
+        Req.Test.json(conn, %{"links" => []})
+      end)
+
+      assert Sandbox.submit_evidence("PP-D-12345", @evidence_payload, []) ==
+               {:ok, %{simulated: false}}
+    end
+
+    test "normalizes PayPal's rejection" do
+      stub_paypal(fn conn ->
+        conn
+        |> Plug.Conn.put_status(422)
+        |> Req.Test.json(%{"name" => "UNPROCESSABLE_ENTITY"})
+      end)
+
+      assert Sandbox.submit_evidence("PP-D-12345", @evidence_payload, []) ==
+               {:error, {:paypal, 422, "UNPROCESSABLE_ENTITY"}}
+    end
+  end
+
   test "get_order/1 fetches the order's status from PayPal" do
     stub_paypal(fn %{request_path: "/v2/checkout/orders/5O190127TN364715T"} = conn ->
       assert conn.method == "GET"

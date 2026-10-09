@@ -7,6 +7,8 @@ defmodule AgentProof.Disputes.Dispute do
     field :reason, Ecto.Enum, values: [:unauthorized, :not_received, :not_as_described, :other]
     field :status, Ecto.Enum, values: [:open, :evidence_ready, :submitted]
     field :due_date, :date
+    # Set only by AgentProof.Disputes.mark_submitted/1, never cast from input.
+    field :submitted_at, :utc_datetime
 
     belongs_to :transaction, AgentProof.Transactions.Transaction
     has_one :evidence, AgentProof.Evidence.Package
@@ -22,6 +24,14 @@ defmodule AgentProof.Disputes.Dispute do
     |> assoc_constraint(:transaction)
     |> unique_constraint(:transaction_id)
   end
+
+  @doc """
+  Whether this dispute was created inside AgentProof (a `DEMO-PP-D-` id)
+  rather than by PayPal. PayPal does not know simulated disputes, so their
+  evidence can only be submitted in simulation.
+  """
+  def simulated?(%__MODULE__{paypal_dispute_id: "DEMO-" <> _rest}), do: true
+  def simulated?(%__MODULE__{}), do: false
 
   @doc """
   Changeset for a customer opening a dispute. Only `reason` comes from input;
