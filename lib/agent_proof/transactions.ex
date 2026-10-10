@@ -18,15 +18,59 @@ defmodule AgentProof.Transactions do
     |> Repo.all()
   end
 
+  # The history's sort options. Only these keys are accepted, so input never picks a column.
+  @history_sorts %{
+    "newest" => [desc: :inserted_at, desc: :id],
+    "oldest" => [asc: :inserted_at, asc: :id],
+    "amount_desc" => [desc: :amount, desc: :id],
+    "amount_asc" => [asc: :amount, desc: :id],
+    "status_asc" => [asc: :status, desc: :id],
+    "status_desc" => [desc: :status, desc: :id]
+  }
+
   @doc """
-  One page of transactions, newest first, with their agent. Returns `{transactions, meta}`.
+  One page of transactions with their agent. `params` may hold a search (`"q"`: product,
+  agent, or PayPal order ID), a `"status"`, and a sort (`"sort"`, newest first by default).
+  Returns `{transactions, meta}`.
   """
   def list_transaction_history(params) do
     Transaction
-    |> order_by(desc: :id)
+    |> search(params["q"])
+    |> with_status(params["status"])
+    |> order_by(^Map.get(@history_sorts, params["sort"], @history_sorts["newest"]))
     |> preload(authorization: :agent)
     |> Pagex.paginate(params, Repo)
   end
+
+  def history_sorts, do: Map.keys(@history_sorts)
+
+  def history_statuses, do: Ecto.Enum.dump_values(Transaction, :status)
+
+  defp with_status(query, status) do
+    if status in history_statuses(), do: where(query, [t], t.status == ^status), else: query
+  end
+
+  defp search(query, term) when is_binary(term) do
+    case String.trim(term) do
+      "" ->
+        query
+
+      term ->
+        pattern = "%" <> escape_like(term) <> "%"
+
+        from t in query,
+          join: a in assoc(t, :authorization),
+          join: g in assoc(a, :agent),
+          where:
+            ilike(t.product_name, ^pattern) or ilike(g.name, ^pattern) or
+              ilike(t.paypal_order_id, ^pattern)
+    end
+  end
+
+  defp search(query, _term), do: query
+
+  # "%" and "_" in a search are plain characters, not wildcards.
+  defp escape_like(term), do: String.replace(term, ["\\", "%", "_"], &("\\" <> &1))
 
   def get_transaction!(id), do: Repo.get!(Transaction, id)
 

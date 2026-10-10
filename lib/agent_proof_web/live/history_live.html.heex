@@ -6,7 +6,7 @@
       </.link>
       <h1 class="mt-1 text-2xl font-semibold tracking-tight">{@page_title}</h1>
       <p class="mt-1 text-sm text-base-content/70">
-        Every purchase your agents made, newest first.
+        Every purchase your agents made.
       </p>
     </div>
     <div class="flex items-center gap-2">
@@ -17,10 +17,47 @@
         aria-label="Loading page"
       />
       <span :if={@page.ok? && @page.result.total > 0} id="history-total" class="badge badge-soft">
-        {@page.result.total} transactions
+        {@page.result.total} {if @filtered, do: "matching "}transactions
       </span>
     </div>
   </div>
+
+  <.form
+    for={@filters}
+    id="history-filters"
+    phx-change="filter"
+    phx-submit="filter"
+    class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start"
+  >
+    <div class="min-w-0 flex-1">
+      <.input
+        field={@filters[:q]}
+        id="history-search"
+        type="search"
+        placeholder="Search by product, agent, or PayPal order"
+        autocomplete="off"
+        phx-debounce="300"
+      />
+    </div>
+    <div class="sm:w-44">
+      <.input
+        field={@filters[:status]}
+        id="history-status"
+        type="select"
+        options={@status_options}
+        aria-label="Filter by status"
+      />
+    </div>
+    <div class="sm:w-60">
+      <.input
+        field={@filters[:sort]}
+        id="history-sort"
+        type="select"
+        options={@sort_options}
+        aria-label="Sort transactions"
+      />
+    </div>
+  </.form>
 
   <.async_result :let={meta} assign={@page}>
     <:loading>
@@ -37,7 +74,7 @@
     </:failed>
 
     <.empty_state
-      :if={meta.total == 0}
+      :if={meta.total == 0 && !@filtered}
       id="history-empty"
       icon="hero-receipt-percent"
       title="No transactions yet"
@@ -49,6 +86,24 @@
     </.empty_state>
 
     <.empty_state
+      :if={meta.total == 0 && @filtered}
+      id="history-no-matches"
+      icon="hero-magnifying-glass"
+      title={no_matches_title(@query, @status)}
+      message="Try a different search or status."
+    >
+      <:actions>
+        <.link
+          id="clear-filters"
+          patch={history_path("", "", @sort)}
+          class="btn btn-sm btn-outline"
+        >
+          Clear filters
+        </.link>
+      </:actions>
+    </.empty_state>
+
+    <.empty_state
       :if={meta.total > 0 && meta.count == 0}
       id="history-page-empty"
       icon="hero-document-magnifying-glass"
@@ -56,7 +111,9 @@
       message={"The history has #{meta.total_pages} #{if meta.total_pages == 1, do: "page", else: "pages"}."}
     >
       <:actions>
-        <.link patch={~p"/history"} class="btn btn-sm btn-outline">Back to page 1</.link>
+        <.link patch={history_path(@query, @status, @sort)} class="btn btn-sm btn-outline">
+          Back to page 1
+        </.link>
       </:actions>
     </.empty_state>
 
@@ -64,6 +121,6 @@
       <.transaction_table id="transactions" rows={@streams.transactions} />
     </div>
 
-    <.pagination meta={meta} page_path={&page_path/1} />
+    <.pagination meta={meta} page_path={&history_path(@query, @status, @sort, &1)} />
   </.async_result>
 </Layouts.app>

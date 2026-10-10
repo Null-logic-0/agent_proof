@@ -5,8 +5,10 @@ defmodule AgentProof.Authorizations do
 
   import Ecto.Query, warn: false
 
+  require Logger
+
   alias Pagex
-  alias AgentProof.{Agents, Repo}
+  alias AgentProof.{Agents, AI, Repo}
   alias AgentProof.Agents.Agent
   alias AgentProof.Authorizations.Authorization
   alias AgentProof.Transactions.Transaction
@@ -19,6 +21,8 @@ defmodule AgentProof.Authorizations do
   }
 
   def get_authorization!(id), do: Repo.get!(Authorization, id)
+
+  def get_authorization(id), do: Repo.get(Authorization, id)
 
   @doc """
   Lists authorizations, newest first. With pagination params, returns
@@ -139,6 +143,7 @@ defmodule AgentProof.Authorizations do
              {:ok, authorization} <-
                authorization
                |> Authorization.changeset(Map.take(settings, [:max_amount, :description]))
+               |> reset_suggestion()
                |> Repo.update() do
           {:ok, authorization.id |> get_authorization!() |> preload_activity()}
         end
@@ -175,6 +180,68 @@ defmodule AgentProof.Authorizations do
   end
 
   # Copies schema errors onto the form changeset, unless the field already has one.
+  # A new description needs a new search suggestion.
+  defp reset_suggestion(changeset) do
+    if Ecto.Changeset.changed?(changeset, :description),
+      do: Ecto.Changeset.change(changeset, suggested_query: nil, suggested_by: nil),
+      else: changeset
+  end
+
+  @doc """
+  Asks the AI for a search query that fits the authorization's description, and saves it.
+  If the AI fails or answers badly, AI.Demo suggests one instead, labelled "demo-fallback".
+  """
+  def suggest_query(%Authorization{id: id, description: description}, opts \\ []) do
+    with {:ok, query, suggested_by} <- suggestion(description, opts) do
+      # Saved only if the description is unchanged and the agent still exists.
+      {count, _} =
+        Authorization
+        |> where(id: ^id, description: ^description)
+        |> Repo.update_all(set: [suggested_query: query, suggested_by: suggested_by])
+
+      if count == 1, do: {:ok, get_authorization!(id)}, else: {:error, :stale}
+    end
+  end
+
+  defp suggestion(description, opts) do
+    case ask_for_query(description, opts) do
+      {:ok, query} ->
+        {:ok, query, AI.provider_name(opts)}
+
+      {:error, reason} ->
+        if AI.provider(opts) == AI.Demo do
+          {:error, reason}
+        else
+          Logger.warning(
+            "Search suggestion failed with #{AI.provider_name(opts)}, using AI.Demo: " <>
+              inspect(reason, limit: 10)
+          )
+
+          with {:ok, query} <- ask_for_query(description, Keyword.put(opts, :provider, AI.Demo)),
+               do: {:ok, query, "demo-fallback"}
+        end
+    end
+  end
+
+  defp ask_for_query(description, opts) do
+    with {:ok, answer} <- AI.suggest_search_query(description, opts) do
+      valid_query(answer)
+    end
+  end
+
+  # The answer only fills a text box, but it is still untrusted: short, plain words only.
+  defp valid_query(%{"product" => query}) when is_binary(query) do
+    words = query |> String.downcase() |> String.split()
+    query = Enum.join(words, " ")
+
+    if length(words) in 1..3 and String.length(query) <= 40 and
+         query =~ ~r/\A[\p{L}\p{N}][\p{L}\p{N}' -]*\z/u,
+       do: {:ok, query},
+       else: {:error, :invalid_suggestion}
+  end
+
+  defp valid_query(_answer), do: {:error, :invalid_suggestion}
+
   defp copy_errors(changeset, source, renames) do
     Enum.reduce(source.errors, changeset, fn {field, {message, opts}}, changeset ->
       field = Keyword.get(renames, field, field)

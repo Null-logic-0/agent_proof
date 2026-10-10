@@ -3,7 +3,13 @@ defmodule AgentProof.AI.Provider do
   Behaviour every AI provider implements (Demo, Ollama, OpenAI).
   """
 
-  @type request :: %{system: String.t(), prompt: String.t(), schema: map(), facts: map()}
+  @type request :: %{
+          task: :evidence | :search_query,
+          system: String.t(),
+          prompt: String.t(),
+          schema: map(),
+          facts: map()
+        }
 
   @doc "Generates evidence for `request`. Returns the decoded JSON, unvalidated."
   @callback generate(request(), opts :: keyword()) :: {:ok, map()} | {:error, term()}

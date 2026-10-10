@@ -6,9 +6,11 @@ defmodule AgentProofWeb.DashboardLiveTest do
 
   alias AgentProof.{Authorizations, Transactions}
 
-  # The authorization cards load in a background task; render_async/1 waits for it.
+  # The cards load in a task, then each card's search suggestion in its own task.
+  # render_async/1 waits only for running tasks, so it is called once for each.
   defp live_dashboard(conn) do
     {:ok, view, _html} = live(conn, ~p"/")
+    render_async(view)
     render_async(view)
     view
   end
@@ -182,6 +184,21 @@ defmodule AgentProofWeb.DashboardLiveTest do
       assert has_element?(view, "#flash-info", "Updated ShopBot Pro.")
     end
 
+    test "a new description gets a new suggestion", %{conn: conn, authorization: authorization} do
+      view = live_dashboard(conn)
+      view |> element("#edit-agent-#{authorization.id}") |> render_click()
+
+      view
+      |> form("#edit-agent-form",
+        settings: %{description: "Buy a new smartphone for grandmother"}
+      )
+      |> render_submit()
+
+      render_async(view)
+
+      assert has_element?(view, "#shop-query-#{authorization.id}[value='smartphone']")
+    end
+
     test "invalid input keeps the modal open with errors",
          %{conn: conn, authorization: authorization} do
       view = live_dashboard(conn)
@@ -256,12 +273,40 @@ defmodule AgentProofWeb.DashboardLiveTest do
       assert has_element?(view, "#flash-info", "bought Sony WH-1000XM5 Headphones")
     end
 
-    test "a new card's search box starts empty, not with a guess",
+    test "the search box holds the AI's suggestion from the description, labelled",
          %{conn: conn, authorization: authorization} do
       view = live_dashboard(conn)
 
-      assert has_element?(view, "#shop-query-#{authorization.id}[placeholder]")
-      refute has_element?(view, "#shop-query-#{authorization.id}[value]:not([value=''])")
+      assert has_element?(view, "#shop-query-#{authorization.id}[value='headphones']")
+      assert has_element?(view, "#shop-suggested-by-#{authorization.id}", "Suggested by demo")
+      refute has_element?(view, "#shop-suggesting-#{authorization.id}")
+    end
+
+    test "a new agent's card gets a suggestion too", %{conn: conn} do
+      view = live_dashboard(conn)
+
+      view
+      |> form("#grant-form",
+        grant: %{@grant | "description" => "Buy a good laptop for office work"}
+      )
+      |> render_submit()
+
+      render_async(view)
+
+      new = Enum.max_by(Authorizations.list_authorizations(), & &1.id)
+      assert has_element?(view, "#shop-query-#{new.id}[value='laptop']")
+    end
+
+    test "after shopping, the box keeps the search and drops the label",
+         %{conn: conn, authorization: authorization} do
+      view = live_dashboard(conn)
+
+      view
+      |> form("#shop-form-#{authorization.id}", shop: %{query: "usb cable"})
+      |> render_submit(%{authorization_id: authorization.id})
+
+      assert has_element?(view, "#shop-query-#{authorization.id}[value='usb cable']")
+      refute has_element?(view, "#shop-suggested-by-#{authorization.id}")
     end
 
     test "a blank search asks for a query and buys nothing",

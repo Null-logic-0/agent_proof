@@ -83,6 +83,141 @@ defmodule AgentProofWeb.HistoryLiveTest do
     end
   end
 
+  describe "search and sort" do
+    setup do
+      shop_bot = authorization_fixture(agent_fixture())
+      office_bot = authorization_fixture(agent_fixture(%{name: "OfficeBot"}))
+
+      %{
+        headphones: transaction_fixture(shop_bot),
+        laptop:
+          transaction_fixture(shop_bot, %{
+            product_name: "MacBook Air 13-inch Laptop",
+            amount: "1099.00"
+          }),
+        cable:
+          transaction_fixture(office_bot, %{
+            product_name: "Anker USB-C Cable (6 ft)",
+            amount: "19.99"
+          })
+      }
+    end
+
+    defp filter(view, q, sort),
+      do: view |> form("#history-filters", %{q: q, sort: sort}) |> render_change()
+
+    defp row_ids(view) do
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#transactions tr")
+      |> LazyHTML.attribute("id")
+    end
+
+    test "typing a search filters the rows and keeps it in the URL",
+         %{conn: conn, laptop: laptop, headphones: headphones} do
+      view = live_history(conn)
+
+      filter(view, "macbook", "newest")
+      assert_patch(view, ~p"/history?q=macbook")
+      render_async(view)
+
+      assert has_element?(view, "#transactions-#{laptop.id}")
+      refute has_element?(view, "#transactions-#{headphones.id}")
+      assert has_element?(view, "#history-total", "1 matching transactions")
+    end
+
+    test "agents can be searched too", %{conn: conn, cable: cable, laptop: laptop} do
+      view = live_history(conn, ~p"/history?q=officebot")
+
+      assert has_element?(view, "#transactions-#{cable.id}")
+      refute has_element?(view, "#transactions-#{laptop.id}")
+      assert has_element?(view, "#history-search[value=officebot]")
+    end
+
+    test "no matches says so, and Clear filters brings everything back", %{conn: conn} do
+      view = live_history(conn)
+
+      filter(view, "zzz", "newest")
+      assert_patch(view, ~p"/history?q=zzz")
+      render_async(view)
+
+      assert has_element?(view, "#history-no-matches", "No transactions match “zzz”")
+      refute has_element?(view, "#history-empty")
+
+      view |> element("#clear-filters") |> render_click()
+      assert_patch(view, ~p"/history")
+      render_async(view)
+
+      assert length(row_ids(view)) == 3
+    end
+
+    test "the sort reorders the rows and keeps it in the URL",
+         %{conn: conn, laptop: laptop, headphones: headphones, cable: cable} do
+      view = live_history(conn)
+
+      filter(view, "", "amount_desc")
+      assert_patch(view, ~p"/history?sort=amount_desc")
+      render_async(view)
+
+      assert row_ids(view) ==
+               Enum.map([laptop, headphones, cable], &"transactions-#{&1.id}")
+
+      assert has_element?(view, "#history-sort option[selected][value=amount_desc]")
+    end
+
+    test "the status filter shows only that status and keeps it in the URL",
+         %{conn: conn, laptop: laptop, headphones: headphones} do
+      failed = transaction_fixture(%{id: laptop.authorization_id}, %{status: :failed})
+      view = live_history(conn)
+
+      view |> form("#history-filters", %{status: "failed"}) |> render_change()
+      assert_patch(view, ~p"/history?status=failed")
+      render_async(view)
+
+      assert row_ids(view) == ["transactions-#{failed.id}"]
+      refute has_element?(view, "#transactions-#{headphones.id}")
+      assert has_element?(view, "#history-status option[selected][value=failed]")
+      assert has_element?(view, "#history-total", "1 matching transactions")
+    end
+
+    test "a status with no transactions says so", %{conn: conn} do
+      view = live_history(conn, ~p"/history?status=created")
+
+      assert has_element?(view, "#history-no-matches", "No created transactions")
+      assert has_element?(view, "#clear-filters[href='/history']")
+    end
+
+    test "an unknown status shows every status", %{conn: conn} do
+      view = live_history(conn, ~p"/history?status=bogus")
+
+      assert has_element?(view, "#history-status option[selected][value='']")
+      assert length(row_ids(view)) == 3
+    end
+
+    test "an unknown sort falls back to newest first", %{conn: conn} do
+      view = live_history(conn, ~p"/history?sort=bogus")
+
+      assert has_element?(view, "#history-sort option[selected][value=newest]")
+      assert length(row_ids(view)) == 3
+    end
+
+    test "page links keep the search, the status, and the sort", %{conn: conn, laptop: laptop} do
+      for _ <- 1..20,
+          do:
+            transaction_fixture(%{id: laptop.authorization_id}, %{
+              product_name: "MacBook Air 13-inch Laptop"
+            })
+
+      view = live_history(conn, ~p"/history?q=macbook&status=completed&sort=amount_asc")
+
+      assert has_element?(
+               view,
+               "#page-2[href='/history?page=2&q=macbook&sort=amount_asc&status=completed']"
+             )
+    end
+  end
+
   test "the navbar links here from every page, marked current here", %{conn: conn} do
     {:ok, dashboard, _html} = live(conn, ~p"/")
     refute has_element?(dashboard, "#nav-history[aria-current]")

@@ -370,6 +370,69 @@ defmodule AgentProof.TransactionsTest do
       assert %{has_next: false, has_prev: true} = meta
     end
 
+    test "searches the product, the agent, and the PayPal order ID",
+         %{authorization: authorization} do
+      laptop =
+        transaction_fixture(authorization, %{
+          product_name: "MacBook Air 13-inch Laptop",
+          paypal_order_id: "ORDER-LAPTOP-1"
+        })
+
+      _headphones = transaction_fixture(authorization)
+      office_bot = authorization_fixture(agent_fixture(%{name: "OfficeBot"}))
+      mouse = transaction_fixture(office_bot, %{product_name: "Logitech MX Master 3S Mouse"})
+
+      ids = fn q ->
+        {items, _meta} = Transactions.list_transaction_history(%{"q" => q})
+        Enum.map(items, & &1.id)
+      end
+
+      assert ids.("macbook") == [laptop.id]
+      assert ids.("OFFICEBOT") == [mouse.id]
+      assert ids.("order-laptop") == [laptop.id]
+      assert length(ids.("  ")) == 3
+      # Wildcards are plain characters.
+      assert ids.("%") == []
+      assert ids.("_") == []
+    end
+
+    test "filters by status, alone or with a search", %{authorization: authorization} do
+      failed = transaction_fixture(authorization, %{status: :failed})
+      completed = transaction_fixture(authorization)
+
+      failed_laptop =
+        transaction_fixture(authorization, %{status: :failed, product_name: "MacBook Air Laptop"})
+
+      ids = fn params ->
+        {items, _meta} = Transactions.list_transaction_history(params)
+        Enum.map(items, & &1.id)
+      end
+
+      assert ids.(%{"status" => "failed"}) == [failed_laptop.id, failed.id]
+      assert ids.(%{"status" => "completed"}) == [completed.id]
+      assert ids.(%{"status" => "failed", "q" => "laptop"}) == [failed_laptop.id]
+      assert length(ids.(%{"status" => "bogus"})) == 3
+    end
+
+    test "sorts by date, amount, or status", %{authorization: authorization} do
+      cheap = transaction_fixture(authorization, %{amount: "19.99", status: :failed})
+      pricey = transaction_fixture(authorization, %{amount: "1099.00"})
+      middle = transaction_fixture(authorization, %{amount: "99.99", status: :created})
+
+      ids = fn sort ->
+        {items, _meta} = Transactions.list_transaction_history(%{"sort" => sort})
+        Enum.map(items, & &1.id)
+      end
+
+      assert ids.("newest") == [middle.id, pricey.id, cheap.id]
+      assert ids.("oldest") == [cheap.id, pricey.id, middle.id]
+      assert ids.("amount_desc") == [pricey.id, middle.id, cheap.id]
+      assert ids.("amount_asc") == [cheap.id, middle.id, pricey.id]
+      assert ids.("status_asc") == [pricey.id, middle.id, cheap.id]
+      assert ids.("status_desc") == [cheap.id, middle.id, pricey.id]
+      assert ids.("DROP TABLE transactions") == ids.("newest")
+    end
+
     test "an empty history has zero pages" do
       assert {[], %{total: 0, total_pages: 0}} =
                Transactions.list_transaction_history(%{"page" => "1"})

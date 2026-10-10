@@ -6,6 +6,9 @@ defmodule AgentProof.Authorizations.Authorization do
     field :max_amount, :decimal
     field :currency, :string
     field :description, :string
+    # Set only by AgentProof.Authorizations.suggest_query/2, never cast from input.
+    field :suggested_query, :string
+    field :suggested_by, :string
 
     belongs_to :agent, AgentProof.Agents.Agent
     has_many :transactions, AgentProof.Transactions.Transaction

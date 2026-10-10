@@ -63,6 +63,23 @@ defmodule AgentProofWeb.DemoModeLiveTest do
       assert Transactions.paypal_fallback?(hd(Transactions.list_transactions()))
     end
 
+    test "search suggestions fall back to the demo mock, labelled", %{conn: conn} do
+      authorization = authorization_fixture(agent_fixture())
+
+      capture_log(fn ->
+        {:ok, view, _html} = live(conn, ~p"/")
+        # Once for the cards, once for their search suggestions.
+        render_async(view)
+        render_async(view)
+
+        assert has_element?(
+                 view,
+                 "#shop-suggested-by-#{authorization.id}",
+                 "Suggested by demo-fallback"
+               )
+      end)
+    end
+
     test "a crafted scenario event does nothing", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/")
 
@@ -107,6 +124,16 @@ defmodule AgentProofWeb.DemoModeLiveTest do
       assert has_element?(view, "#flash-info", "bought Sony WH-1000XM5 Headphones")
       refute has_element?(view, "#flash-info", "PayPal was unavailable")
       refute Transactions.paypal_fallback?(hd(Transactions.list_transactions()))
+    end
+
+    test "search suggestions use AI.Demo directly, not as a fallback", %{conn: conn} do
+      authorization = authorization_fixture(agent_fixture())
+      {:ok, view, _html} = live(conn, ~p"/")
+      render_async(view)
+      render_async(view)
+
+      assert has_element?(view, "#shop-suggested-by-#{authorization.id}", "Suggested by demo")
+      refute has_element?(view, "#shop-suggested-by-#{authorization.id}", "fallback")
     end
 
     test "investigations use AI.Demo directly, not as a fallback", %{conn: conn} do

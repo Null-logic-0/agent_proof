@@ -69,7 +69,12 @@ defmodule AgentProofWeb.AuthorizationCard do
           currency={@card.authorization.currency}
         />
 
-        <.shop_form form={@card.shop_form} authorization_id={@card.id} />
+        <.shop_form
+          form={@card.shop_form}
+          authorization_id={@card.id}
+          suggested_by={@card.suggested_by}
+          suggesting={@card.suggesting}
+        />
 
         <.transaction_list transactions={@card.authorization.transactions} />
       </div>

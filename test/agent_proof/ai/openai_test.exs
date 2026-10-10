@@ -70,6 +70,18 @@ defmodule AgentProof.AI.OpenAITest do
     assert OpenAI.generate(@request, []) == {:ok, %{"summary" => "Within budget."}}
   end
 
+  test "a search query request has its own schema name" do
+    Req.Test.stub(OpenAI, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      assert get_in(Jason.decode!(body), ["text", "format", "name"]) == "search_query"
+
+      respond(conn, [%{"type" => "output_text", "text" => ~s({"product": "laptop"})}])
+    end)
+
+    assert OpenAI.generate(Map.put(@request, :task, :search_query), []) ==
+             {:ok, %{"product" => "laptop"}}
+  end
+
   test "a refusal gets its own error" do
     Req.Test.stub(OpenAI, &respond(&1, [%{"type" => "refusal", "refusal" => "I can't help."}]))
 

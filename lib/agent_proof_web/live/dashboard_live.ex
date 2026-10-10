@@ -32,7 +32,7 @@ defmodule AgentProofWeb.DashboardLive do
      |> assign(:page_title, "AgentProof")
      |> assign(:form, build_grant_form(@grant_defaults))
      |> assign(:product_names, Enum.map(AgentProof.Catalog.list_products(), & &1.name))
-     |> assign(editing: nil, edit_form: nil)
+     |> assign(editing: nil, edit_form: nil, last_searches: %{})
      |> assign(:listing, AsyncResult.loading())
      |> assign(oldest_id: nil, more?: false, loading_more: false)
      |> stream(:authorizations, [])
@@ -45,7 +45,8 @@ defmodule AgentProofWeb.DashboardLive do
      socket
      |> assign(:listing, AsyncResult.ok(socket.assigns.listing, true))
      |> assign(more?: more?, oldest_id: oldest_id(cards, nil))
-     |> stream(:authorizations, cards, reset: true)}
+     |> stream(:authorizations, cards, reset: true)
+     |> suggest_queries(Enum.map(cards, & &1.authorization))}
   end
 
   def handle_async(:load_authorizations, {:exit, reason}, socket) do
@@ -61,7 +62,31 @@ defmodule AgentProofWeb.DashboardLive do
        loading_more: false,
        oldest_id: oldest_id(cards, socket.assigns.oldest_id)
      )
-     |> stream(:authorizations, cards)}
+     |> stream(:authorizations, cards)
+     |> suggest_queries(Enum.map(cards, & &1.authorization))}
+  end
+
+  def handle_async({:suggest, _id}, {:ok, {:ok, authorization}}, socket) do
+    {:noreply,
+     stream_insert(socket, :authorizations, card_with_last_search(socket, authorization))}
+  end
+
+  # The agent was edited or deleted meanwhile, so the suggestion was dropped.
+  def handle_async({:suggest, _id}, {:ok, {:error, :stale}}, socket), do: {:noreply, socket}
+
+  def handle_async({:suggest, id}, result, socket) do
+    Logger.warning(
+      "Search suggestion failed for authorization #{id}: #{inspect(result, limit: 10)}"
+    )
+
+    case Authorizations.get_authorization(id) do
+      nil ->
+        {:noreply, socket}
+
+      authorization ->
+        card = %{card_with_last_search(socket, authorization) | suggesting: false}
+        {:noreply, stream_insert(socket, :authorizations, card)}
+    end
   end
 
   def handle_async(:load_more, {:exit, reason}, socket) do
@@ -107,6 +132,7 @@ defmodule AgentProofWeb.DashboardLive do
              "#{money(authorization.max_amount)} #{authorization.currency}."
          )
          |> stream_insert(:authorizations, card(authorization), at: 0)
+         |> suggest_queries([authorization])
          |> assign(:form, build_grant_form(@grant_defaults))}
 
       {:error, changeset} ->
@@ -162,7 +188,9 @@ defmodule AgentProofWeb.DashboardLive do
         {:noreply,
          socket
          |> assign(editing: nil, edit_form: nil)
+         |> update(:last_searches, &Map.delete(&1, authorization.id))
          |> stream_insert(:authorizations, card(authorization))
+         |> suggest_queries([authorization])
          |> put_flash(:info, "Updated #{authorization.agent.name}.")}
 
       {:error, changeset} ->
@@ -208,6 +236,7 @@ defmodule AgentProofWeb.DashboardLive do
 
     {:noreply,
      socket
+     |> update(:last_searches, &Map.put(&1, authorization.id, query))
      |> stream_insert(:authorizations, card(authorization, query))
      |> put_shop_flash(result, query, authorization)}
   end
@@ -237,14 +266,39 @@ defmodule AgentProofWeb.DashboardLive do
   defp build_grant_form(params),
     do: params |> Authorizations.change_grant() |> to_form(as: :grant)
 
-  # Stream items can't read assigns, so each card carries its own shop form (empty at first).
-  defp card(authorization, query \\ "") do
+  # Stream items can't read assigns, so each card carries its own shop form. The box holds
+  # the last search, otherwise the AI's suggestion.
+  defp card(authorization, last_search \\ nil) do
+    suggestion? = is_nil(last_search)
+
     %{
       id: authorization.id,
       authorization: authorization,
       spent: Transactions.spent_amount(authorization),
-      shop_form: to_form(%{"query" => query}, as: :shop)
+      shop_form:
+        to_form(%{"query" => last_search || authorization.suggested_query || ""}, as: :shop),
+      suggested_by: if(suggestion?, do: authorization.suggested_by),
+      suggesting: suggestion? and is_nil(authorization.suggested_query)
     }
+  end
+
+  defp card_with_last_search(socket, authorization) do
+    authorization
+    |> Authorizations.preload_activity()
+    |> card(socket.assigns.last_searches[authorization.id])
+  end
+
+  # Cards without a search suggestion get one in the background.
+  defp suggest_queries(socket, authorizations) do
+    opts = DemoMode.opts(socket.assigns.demo_mode)
+
+    authorizations
+    |> Enum.filter(&is_nil(&1.suggested_query))
+    |> Enum.reduce(socket, fn authorization, socket ->
+      start_async(socket, {:suggest, authorization.id}, fn ->
+        Authorizations.suggest_query(authorization, opts)
+      end)
+    end)
   end
 
   defp put_shop_flash(socket, {:ok, transaction}, _query, authorization) do

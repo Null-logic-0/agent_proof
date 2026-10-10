@@ -16,6 +16,10 @@ PayPal when a dispute arrives.
 
 - **Give an agent a budget.** Set the agent's name, a spending limit, and what
   it may buy (for example "noise-cancelling headphones, up to $200").
+- **Smart search box.** The AI reads what the agent may buy and fills in the
+  search box (for example "laptop"). A small note shows who suggested it. In
+  Demo Mode, a built-in demo version suggests it instead. You can always
+  change it.
 - **Let the agent shop.** The agent searches a small product catalog and picks
   a product. AgentProof checks the budget *before* paying. If the purchase is
   over the limit, it is blocked and PayPal is never called.
@@ -37,6 +41,8 @@ PayPal when a dispute arrives.
 - **Send to PayPal.** You see the exact request PayPal will receive, then
   submit it. After that, the case is locked and nothing can change.
 - **Transaction history.** All purchases on one page, with page numbers.
+  Search by product, agent, or PayPal order ID, filter by status, and sort by
+  date, amount, or status.
 - **Edit or delete agents.** You can change an agent's name, limit, and
   description. Old purchases keep the terms they were bought under. An agent
   with purchases cannot be deleted, so the evidence is never lost.
@@ -173,7 +179,8 @@ The top bar always shows which PayPal and AI are in use.
 
 1. On the dashboard, the **Authorize an agent** form is already filled in.
    Click **Authorize agent**.
-2. On the new agent's card, type `laptop` and click **Let the agent shop**.
+2. On the new agent's card, the AI fills in the search box (`headphones`).
+   First, replace it with `laptop` and click **Let the agent shop**.
    It is blocked: it costs more than the limit.
 3. Type `headphones` and click **Let the agent shop**. This time it is bought.
 4. Click the purchase to open its case page and see the timeline.

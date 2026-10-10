@@ -8,7 +8,14 @@ defmodule AgentProof.AI.Demo do
   @impl true
   def name, do: "demo"
 
+  # Words that describe a purchase rather than name the product.
+  @filler ~w(buy purchase get order find a an the some new good nice cheap best great quality)
+
   @impl true
+  def generate(%{task: :search_query, facts: %{"description" => description}}, _opts) do
+    {:ok, %{"product" => search_query(description), "details" => []}}
+  end
+
   def generate(%{facts: facts}, _opts) do
     {:ok,
      %{
@@ -109,4 +116,16 @@ defmodule AgentProof.AI.Demo do
     do: "Delivery happened before the dispute was opened."
 
   defp delivery_timing(_checks), do: "Delivery happened after the dispute was opened."
+
+  # The product phrase ends before words like "for" or "up to", and its last word
+  # usually names the product: "noise-cancelling headphones" -> "headphones".
+  defp search_query(description) do
+    description
+    |> String.downcase()
+    |> String.split(~r/[,(]|\b(for|up to|under|below|with|that)\b/u, parts: 2)
+    |> hd()
+    |> String.split(~r/[^\p{L}\p{N}-]+/u, trim: true)
+    |> Enum.reject(&(&1 in @filler or &1 =~ ~r/^\d+$/))
+    |> List.last("")
+  end
 end

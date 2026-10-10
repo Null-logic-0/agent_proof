@@ -19,7 +19,7 @@ defmodule AgentProof.AI.OpenAI do
       text: %{
         format: %{
           type: "json_schema",
-          name: "dispute_evidence",
+          name: schema_name(request),
           schema: request.schema,
           strict: true
         }
@@ -93,4 +93,7 @@ defmodule AgentProof.AI.OpenAI do
   defp config!(key), do: Keyword.fetch!(settings(), key)
   defp config(key, default), do: Keyword.get(settings(), key, default)
   defp settings, do: Application.get_env(:agent_proof, __MODULE__, [])
+
+  defp schema_name(%{task: :search_query}), do: "search_query"
+  defp schema_name(_request), do: "dispute_evidence"
 end

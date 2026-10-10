@@ -131,6 +131,10 @@ defmodule AgentProof.AITest do
       assert_strict(EvidenceSchema.json_schema())
     end
 
+    test "the search query schema satisfies them too" do
+      assert_strict(AI.search_query_schema())
+    end
+
     test "AI.Demo's output conforms to the schema" do
       assert conforms?(demo(), EvidenceSchema.json_schema())
     end
