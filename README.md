@@ -3,6 +3,8 @@
 AgentProof helps a shop prove what an AI shopping agent was allowed to buy,
 when a customer disputes a PayPal payment.
 
+**▶ Watch the 2-minute demo:** [youtu.be/sGaf6BlRC3A](https://youtu.be/sGaf6BlRC3A)
+
 ## The problem
 
 AI agents now buy things for people. Sometimes the customer later says
