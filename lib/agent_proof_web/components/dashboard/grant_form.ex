@@ -2,8 +2,7 @@ defmodule AgentProofWeb.GrantForm do
   use AgentProofWeb, :html
 
   @doc """
-  The form that authorizes a new agent. Its `validate` and `grant` events are
-  handled by the LiveView that renders it.
+  Form for authorizing a new agent.
   """
   attr :form, Phoenix.HTML.Form, required: true
 

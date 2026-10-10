@@ -32,9 +32,7 @@ defmodule AgentProof.Evidence.Package do
   end
 
   @doc """
-  Validates a model's raw evidence map: shape, lengths, and grounding in the
-  case `facts`. `dispute_id` and `ai_provider` are set on the struct by code,
-  never taken from the model.
+  Validates the AI's raw evidence: shape, lengths, and grounding in the case facts.
   """
   def ai_changeset(package, attrs, facts) do
     package

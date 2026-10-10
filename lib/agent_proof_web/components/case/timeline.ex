@@ -2,8 +2,7 @@ defmodule AgentProofWeb.Timeline do
   use AgentProofWeb, :html
 
   @doc """
-  The transaction timeline: who did what, when. `events` come from
-  `AgentProof.Transactions.timeline/1`, oldest first.
+  The transaction's timeline: who did what, and when.
   """
   attr :events, :list, required: true
 

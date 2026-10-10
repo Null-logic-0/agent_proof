@@ -1,12 +1,6 @@
 defmodule AgentProof.Transactions.Reconstruction do
   @moduledoc """
-  Rebuilds a disputed transaction as plain, JSON-friendly facts.
-
-  Pure: it works only on preloaded structs, with no database and no AI. The
-  `"checks"` are computed here, by code, so no model ever decides them. The
-  authorization's limit and description are the ones recorded at purchase
-  time, so editing the authorization later never rewrites the evidence. The
-  output shape is documented in `AgentProof.AI.Provider`.
+  Rebuilds a disputed transaction as plain facts. The checks are computed here, never by the AI.
   """
 
   alias AgentProof.Agents.Agent
@@ -60,9 +54,7 @@ defmodule AgentProof.Transactions.Reconstruction do
     }
   end
 
-  # The limit and description in force when the purchase was checked, as the
-  # system recorded them. Older purchases without a recorded description, or
-  # none at all, fall back to the current terms.
+  # The terms recorded at purchase time; older purchases fall back to the current ones.
   defp terms_at_purchase(budget_check, authorization) do
     current = %{
       max_amount: money(authorization.max_amount),
@@ -87,8 +79,7 @@ defmodule AgentProof.Transactions.Reconstruction do
   defp find_action(transaction, name),
     do: Enum.find(transaction.agent_actions, &(&1.action == name))
 
-  # The verdict recorded at purchase time reflects the cumulative budget at that
-  # moment. Without it, fall back to comparing this purchase alone.
+  # The verdict recorded at purchase time; without one, compare this purchase alone.
   defp within_budget?(%{details: details}, _transaction, _authorization),
     do: details["result"] == "approved"
 

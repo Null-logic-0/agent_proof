@@ -244,7 +244,7 @@ defmodule AgentProof.AuthorizationsTest do
 
   describe "list_authorizations_page/2" do
     setup do
-      # One agent per authorization, as the dashboard creates them; oldest first.
+      # One agent per authorization, as the dashboard creates them.
       %{
         authorizations:
           for(n <- 1..5, do: authorization_fixture(agent_fixture(%{name: "Bot #{n}"})))
@@ -269,7 +269,6 @@ defmodule AgentProof.AuthorizationsTest do
       [a1, a2, a3, _a4, _a5] = auths
       {_page_one, _more?} = Authorizations.list_authorizations_page(nil, 3)
 
-      # A new agent arrives and an already-shown one is deleted.
       authorization_fixture(agent_fixture(%{name: "Newcomer"}))
       {:ok, _} = Authorizations.delete_agent(Repo.preload(a3, :agent).agent)
 

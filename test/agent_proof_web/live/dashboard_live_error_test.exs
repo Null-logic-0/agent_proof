@@ -1,6 +1,5 @@
 defmodule AgentProofWeb.DashboardLiveErrorTest do
-  # async: false because it swaps the authorizations source in application
-  # config. ExUnit runs this only after every async test has finished.
+  # async: false, so it runs after all async tests: it swaps the authorizations source.
   use AgentProofWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -25,7 +24,6 @@ defmodule AgentProofWeb.DashboardLiveErrorTest do
         refute has_element?(view, "#authorizations-error", "database unavailable")
         assert has_element?(view, "#grant-form")
 
-        # The database recovers; Try again loads the list.
         Application.delete_env(:agent_proof, :authorizations_source)
         view |> element("#authorizations-error-retry") |> render_click()
         render_async(view)

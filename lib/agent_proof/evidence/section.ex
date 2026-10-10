@@ -11,9 +11,7 @@ defmodule AgentProof.Evidence.Section do
   end
 
   @doc """
-  Validates one evidence section. With `case_facts`, every amount and
-  identifier must also be grounded in them. `required_mentions` is a list of
-  `{label, value}` the section must quote, e.g. `{"the PayPal order ID", id}`.
+  Validates one evidence section. `required_mentions` are values it must quote.
   """
   def changeset(section, attrs, case_facts \\ nil, required_mentions \\ []) do
     section

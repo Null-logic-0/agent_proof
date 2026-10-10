@@ -2,8 +2,7 @@ defmodule AgentProofWeb.ErrorState do
   use AgentProofWeb, :html
 
   @doc """
-  A friendly failure message with a retry button. The real error belongs in
-  the server log, never on screen.
+  A friendly error message with a Try again button.
   """
   attr :id, :string, required: true
   attr :title, :string, required: true

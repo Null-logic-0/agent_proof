@@ -4,9 +4,7 @@ defmodule AgentProofWeb.TransactionTable do
   import AgentProofWeb.StatusBadge
 
   @doc """
-  A table of transactions with their agent. `rows` is a stream of
-  transactions preloaded with `authorization: :agent`. Scrolls sideways on
-  narrow screens instead of widening the page.
+  Table of transactions with their agent. Scrolls sideways on small screens.
   """
   attr :id, :string, required: true
   attr :rows, :any, required: true

@@ -2,9 +2,7 @@ defmodule AgentProofWeb.DemoModeSwitch do
   use AgentProofWeb, :html
 
   @doc """
-  A button that turns Demo Mode on or off for this browser. It posts to
-  `AgentProofWeb.DemoModeController`, which stores the choice in the session
-  and reloads the page, so every LiveView mounts with the new mode.
+  Button that turns Demo Mode on or off for this browser.
   """
   attr :id, :string, required: true
   attr :demo_mode, :boolean, required: true, doc: "whether Demo Mode is on now"

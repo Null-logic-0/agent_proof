@@ -20,10 +20,7 @@ defmodule AgentProof.Transactions.AgentAction do
   end
 
   @doc """
-  Validates actions reported by an agent.
-
-  `actor` is never read from the input: everything an agent reports is
-  recorded as `:agent`, so an agent cannot forge system actions.
+  Validates the agent's own action log. Everything in it is recorded as done by the agent.
   """
   def from_agent(actions) when is_list(actions) do
     changesets = Enum.map(actions, &agent_changeset(%__MODULE__{}, &1))
@@ -35,7 +32,7 @@ defmodule AgentProof.Transactions.AgentAction do
   end
 
   @doc """
-  Builds an action performed by AgentProof itself, happening now.
+  An action done by AgentProof itself, now.
   """
   def system(action, details) do
     %__MODULE__{action: action, actor: :system, at: DateTime.utc_now(), details: details}

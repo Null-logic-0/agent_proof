@@ -83,6 +83,19 @@ defmodule AgentProofWeb.HistoryLiveTest do
     end
   end
 
+  test "the navbar links here from every page, marked current here", %{conn: conn} do
+    {:ok, dashboard, _html} = live(conn, ~p"/")
+    refute has_element?(dashboard, "#nav-history[aria-current]")
+
+    assert {:ok, history, _html} =
+             dashboard
+             |> element("#nav-history")
+             |> render_click()
+             |> follow_redirect(conn, ~p"/history")
+
+    assert has_element?(history, "#nav-history[aria-current=page]")
+  end
+
   test "the dashboard links here once a bot has 5 purchases", %{conn: conn} do
     authorization = authorization_fixture(agent_fixture())
     for _ <- 1..5, do: transaction_fixture(authorization)

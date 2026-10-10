@@ -4,8 +4,7 @@ defmodule AgentProofWeb.DemoBanner do
   import AgentProofWeb.DemoModeSwitch
 
   @doc """
-  The full-width notice shown on every page while Demo Mode is on, with a
-  button to turn it off.
+  Banner shown on every page while Demo Mode is on.
   """
   attr :return_to, :string, required: true
 

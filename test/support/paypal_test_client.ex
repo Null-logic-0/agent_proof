@@ -1,9 +1,6 @@
 defmodule AgentProof.PayPal.TestClient do
   @moduledoc """
-  PayPal adapter for tests that fails on demand.
-
-  Pass `fail: :create`, `fail: :capture`, or `fail: :submit` in opts;
-  otherwise it behaves like `AgentProof.PayPal.Demo`.
+  PayPal adapter for tests that fails on demand: pass `fail: :create`, `:capture`, or `:submit`.
   """
 
   @behaviour AgentProof.PayPal.Client

@@ -12,7 +12,6 @@ defmodule AgentProof.Evidence do
 
   @attempts 2
 
-  # The `ai_provider` of evidence AI.Demo wrote because the real AI failed.
   @fallback_provider "demo-fallback"
 
   def get_package_by_dispute(%Dispute{id: dispute_id}) do
@@ -20,21 +19,9 @@ defmodule AgentProof.Evidence do
   end
 
   @doc """
-  Investigates a dispute with the AI and saves a validated evidence package.
-
-    1. The AI is called outside any database transaction: it can take seconds,
-       and a transaction would hold a database connection the whole time.
-    2. The answer is validated for shape and grounding. An invalid answer is
-       retried once, with the problems fed back to the model. Provider errors
-       (unreachable, refusal, quota) are not retried: retrying won't help.
-    3. If the real AI still failed, `AgentProof.AI.Demo` writes the evidence
-       from the same facts, saved as `ai_provider: "demo-fallback"`. Pass
-       `fallback: false` to get the error instead.
-    4. The package and the dispute's `:evidence_ready` status are saved
-       atomically.
-
-  Regenerating replaces the package until the dispute is submitted. `opts`
-  are passed to `AgentProof.AI` (e.g. `:provider`).
+  Asks the AI for evidence, validates it, and saves it. The AI is never called inside a
+  database transaction. If the AI fails, AI.Demo writes the evidence (`fallback: false`
+  returns the error instead).
   """
   def generate_for_dispute(dispute_id, opts \\ []) do
     dispute = Disputes.get_case!(dispute_id)
@@ -52,9 +39,7 @@ defmodule AgentProof.Evidence do
   def fallback?(%Package{ai_provider: ai_provider}), do: ai_provider == @fallback_provider
 
   @doc """
-  Records the merchant's approval of an evidence package. Only approved
-  evidence can be submitted to PayPal. Refused once the dispute is submitted.
-  Regenerating the evidence replaces the package and clears the approval.
+  Approves the evidence so it can be submitted. Refused once the dispute is submitted.
   """
   def approve(%Package{} = package) do
     package = Repo.preload(package, :dispute)
@@ -66,9 +51,6 @@ defmodule AgentProof.Evidence do
     end
   end
 
-  @doc """
-  Withdraws the merchant's approval, e.g. to look at the evidence again.
-  """
   def withdraw_approval(%Package{} = package) do
     package = Repo.preload(package, :dispute)
 
@@ -78,10 +60,7 @@ defmodule AgentProof.Evidence do
   end
 
   @doc """
-  What submitting this package would send: the PayPal dispute id, the exact
-  provide-evidence payload, and whether the submission is simulated. The
-  preview and `submit/2` use the same function, so the merchant sees exactly
-  what is sent.
+  Returns exactly what `submit/2` would send to PayPal.
   """
   def prepare_submission(%Package{} = package) do
     package = Repo.preload(package, dispute: :transaction)
@@ -95,13 +74,8 @@ defmodule AgentProof.Evidence do
   end
 
   @doc """
-  Submits approved evidence to PayPal and marks the dispute submitted, which
-  is final.
-
-  PayPal is called outside any database transaction. On failure the dispute
-  stays approved. Disputes PayPal doesn't know (`DEMO-PP-D-` ids) always go
-  to `PayPal.Demo`, whatever adapter is configured; an explicit `:adapter`
-  option still wins (tests).
+  Sends approved evidence to PayPal and marks the dispute submitted. On failure it stays
+  approved.
   """
   def submit(%Package{} = package, opts \\ []) do
     package = Repo.preload(package, dispute: :transaction)
@@ -110,6 +84,7 @@ defmodule AgentProof.Evidence do
          :ok <- ensure_approved(package) do
       submission = prepare_submission(package)
 
+      # PayPal doesn't know simulated disputes, so they always go to PayPal.Demo.
       opts =
         if submission.simulated?,
           do: Keyword.put_new(opts, :adapter, PayPal.Demo),
@@ -139,9 +114,7 @@ defmodule AgentProof.Evidence do
     end
   end
 
-  # The real AI failed (unreachable, refusing, or invalid twice), so AI.Demo
-  # writes the evidence from the same facts, labelled so nobody mistakes it
-  # for a model's work. If even that fails, the original error is returned.
+  # Labelled "demo-fallback". If even AI.Demo fails, the original error is returned.
   defp fall_back(dispute, facts, opts, reason) do
     Logger.warning(
       "AI investigation failed with #{AI.provider_name(opts)}, writing the evidence " <>
@@ -203,8 +176,7 @@ defmodule AgentProof.Evidence do
     attempt(dispute, facts, opts, feedback, attempts_left - 1)
   end
 
-  # Turns changeset errors into lines the model can act on, e.g.
-  # "- authorization_evidence.statement mentions 249.99, not found in the case facts"
+  # Turns changeset errors into lines the model can act on.
   defp feedback_for(changeset) do
     changeset
     |> Ecto.Changeset.traverse_errors(fn {message, opts} ->

@@ -10,9 +10,7 @@ defmodule AgentProofWeb.VerifiedFacts do
   ]
 
   @doc """
-  The checks AgentProof computed in code (`Transactions.reconstruct/2`), the
-  same facts the AI was given. Shown beside the AI's text so it is clear what
-  is proven and what is written.
+  The checks computed by code, shown beside the AI's text.
   """
   attr :facts, :map, required: true
 

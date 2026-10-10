@@ -1,7 +1,6 @@
 defmodule AgentProof.AI.CrashingProvider do
   @moduledoc """
-  AI provider that raises, as a bug would, used to test the investigation's
-  error state. A crash is not an answer, so nothing falls back to AI.Demo.
+  AI provider that raises, to test the investigation's error state.
   """
 
   @behaviour AgentProof.AI.Provider

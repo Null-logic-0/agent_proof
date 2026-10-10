@@ -4,10 +4,7 @@ defmodule AgentProofWeb.EvidenceReview do
   import AgentProofWeb.VerifiedFacts
 
   @doc """
-  The full evidence package for the merchant to review: the AI-written
-  sections beside the code-verified facts, with the approval controls.
-  Its `approve_evidence` and `withdraw_approval` events are handled by the
-  LiveView.
+  The evidence package beside the verified checks, with the approval buttons.
   """
   attr :evidence, :map, required: true
   attr :facts, :map, required: true, doc: "from Transactions.reconstruct/2"

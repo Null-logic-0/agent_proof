@@ -1,10 +1,6 @@
 defmodule AgentProof.AI.Demo do
   @moduledoc """
-  Deterministic AI provider: builds evidence directly from the case facts.
-
-  No language model is involved, and the output says so. The same facts
-  always produce the same evidence, which keeps demos repeatable and lets
-  tests run without a model.
+  AI provider that builds evidence from the case facts, without a language model.
   """
 
   @behaviour AgentProof.AI.Provider

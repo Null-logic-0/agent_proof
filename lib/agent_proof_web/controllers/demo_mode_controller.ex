@@ -2,9 +2,7 @@ defmodule AgentProofWeb.DemoModeController do
   use AgentProofWeb, :controller
 
   @doc """
-  Turns Demo Mode on or off for this browser, then reloads the page the switch
-  was used on. LiveViews read the choice from the session on mount (see
-  `AgentProofWeb.DemoMode`).
+  Turns Demo Mode on or off for this browser, then reloads the page.
   """
   def update(conn, params) do
     conn
@@ -12,8 +10,7 @@ defmodule AgentProofWeb.DemoModeController do
     |> redirect(to: local_path(params["return_to"]))
   end
 
-  # Only paths on this site are followed, so the switch can't be used to send
-  # someone elsewhere ("//evil.example" is a link to another site).
+  # Only local paths are followed, so the switch can't redirect to another site.
   defp local_path("/" <> _ = path) do
     if String.starts_with?(path, ["//", "/\\"]), do: ~p"/", else: path
   end

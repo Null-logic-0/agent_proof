@@ -26,17 +26,13 @@ defmodule AgentProof.Disputes.Dispute do
   end
 
   @doc """
-  Whether this dispute was created inside AgentProof (a `DEMO-PP-D-` id)
-  rather than by PayPal. PayPal does not know simulated disputes, so their
-  evidence can only be submitted in simulation.
+  Whether the dispute was created in AgentProof, so PayPal doesn't know it.
   """
   def simulated?(%__MODULE__{paypal_dispute_id: "DEMO-" <> _rest}), do: true
   def simulated?(%__MODULE__{}), do: false
 
   @doc """
-  Changeset for a customer opening a dispute. Only `reason` comes from input;
-  status, PayPal dispute id, and due date are set by
-  `AgentProof.Disputes.open_dispute/3`.
+  Changeset for opening a dispute. Only `reason` comes from input.
   """
   def open_changeset(dispute, attrs) do
     dispute

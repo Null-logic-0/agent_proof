@@ -1,9 +1,6 @@
 defmodule AgentProof.Catalog do
   @moduledoc """
-  A small hardcoded product catalog standing in for a merchant's store.
-
-  Simulated for the MVP: no database, and the same query always returns the
-  same products in the same order.
+  A small fixed product catalog standing in for a real store.
   """
 
   @products [
@@ -40,8 +37,7 @@ defmodule AgentProof.Catalog do
   def list_products, do: @products
 
   @doc """
-  Returns products whose name or category contains every word of `query`,
-  in any order and ignoring case: "usb cable" finds the "USB-C Cable".
+  Finds products whose name or category contains every word of `query`.
   """
   def search(query) do
     case words(query) do

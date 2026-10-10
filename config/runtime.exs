@@ -40,9 +40,10 @@ if config_env() == :dev do
     ]
 end
 
-# Use the real PayPal Sandbox in dev when credentials are present
-# (run `source .env` before starting). Otherwise PayPal.Demo stays in use.
-if config_env() == :dev and System.get_env("PAYPAL_CLIENT_ID") do
+# Use the real PayPal Sandbox when credentials are present: in dev, run
+# `source .env` before starting; Docker Compose reads .env itself.
+# Otherwise PayPal.Demo stays in use.
+if config_env() in [:dev, :prod] and System.get_env("PAYPAL_CLIENT_ID") do
   config :agent_proof, :paypal_adapter, AgentProof.PayPal.Sandbox
 
   config :agent_proof, AgentProof.PayPal.Sandbox,
@@ -51,16 +52,22 @@ if config_env() == :dev and System.get_env("PAYPAL_CLIENT_ID") do
     client_secret: System.fetch_env!("PAYPAL_SECRET_KEY")
 end
 
-# Local Ollama server and model for AI evidence in dev.
-if config_env() == :dev do
+# Ollama server and model for AI evidence: always in dev (dev.exs makes it
+# the provider), and in prod (Docker) when OLLAMA_URL is set. Otherwise
+# AI.Demo stays in use.
+if config_env() == :dev or (config_env() == :prod and System.get_env("OLLAMA_URL")) do
   config :agent_proof, AgentProof.AI.Ollama,
     base_url: System.get_env("OLLAMA_URL", "http://localhost:11434"),
     model: System.get_env("OLLAMA_MODEL", "llama3.2")
 end
 
+if config_env() == :prod and System.get_env("OLLAMA_URL") do
+  config :agent_proof, :ai_provider, AgentProof.AI.Ollama
+end
+
 # Optional OpenAI provider, available only when OPENAI_API_KEY is set.
-# AI_PROVIDER=openai makes it the dev default instead of Ollama.
-if config_env() == :dev and System.get_env("OPENAI_API_KEY") do
+# AI_PROVIDER=openai makes it the default instead of Ollama.
+if config_env() in [:dev, :prod] and System.get_env("OPENAI_API_KEY") do
   config :agent_proof, AgentProof.AI.OpenAI,
     base_url: "https://api.openai.com",
     api_key: System.fetch_env!("OPENAI_API_KEY"),

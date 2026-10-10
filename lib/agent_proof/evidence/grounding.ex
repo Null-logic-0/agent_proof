@@ -1,24 +1,14 @@
 defmodule AgentProof.Evidence.Grounding do
   @moduledoc """
-  Finds amounts and identifiers in AI-written text that do not appear in the
-  case facts.
-
-  It cannot catch every hallucination ("done by the agent" is just words),
-  but it reliably catches invented numbers and identifiers, the most damaging
-  kind in a dispute.
+  Finds amounts and IDs in AI-written text that are not in the case facts.
   """
 
   # 189.99 and 1,099.00
   @amount ~r/\d{1,3}(?:,\d{3})+\.\d{2}|\d+\.\d{2}/
-  # Tokens of 10+ characters, e.g. order ids, tracking numbers, SKUs, and the
-  # date-hour part of timestamps (2026-10-08T13). Only tokens that mix letters
-  # and digits are checked, so ordinary words are ignored.
+  # IDs: tokens of 10+ characters that mix letters and digits, e.g. order ids and timestamps.
   @identifier ~r/\b[A-Za-z0-9][A-Za-z0-9-]{8,}[A-Za-z0-9]\b/
   @date ~r/\b\d{4}-\d{2}-\d{2}\b/
 
-  @doc """
-  Returns the amounts and identifiers in `text` that are not found in `facts`.
-  """
   def ungrounded(text, facts) when is_binary(text) do
     known = Jason.encode!(facts)
 
@@ -28,8 +18,7 @@ defmodule AgentProof.Evidence.Grounding do
   end
 
   @doc """
-  Changeset validation: adds an error to `field` for every ungrounded token.
-  Skipped when `facts` is `nil`.
+  Adds a changeset error to `field` for each ungrounded token. Skipped when `facts` is `nil`.
   """
   def validate(changeset, _field, nil), do: changeset
 

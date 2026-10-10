@@ -9,9 +9,7 @@ defmodule AgentProofWeb.CaseActions do
   ]
 
   @doc """
-  The demo's next steps for a case: deliver (simulated carrier), dispute
-  (simulated customer), then the AI investigation. Its events are handled by
-  the LiveView.
+  The next steps for a case: deliver, dispute, and investigate.
   """
   attr :transaction, :map, required: true, doc: "a transaction from Transactions.get_case!/1"
   attr :dispute_form, Phoenix.HTML.Form, required: true

@@ -1,10 +1,6 @@
 defmodule AgentProof.AI.TestProvider do
   @moduledoc """
-  AI provider for tests: returns whatever the test passes as `reply:`, or
-  calls it with the request when it is a function.
-
-      AI.generate(request, provider: TestProvider, reply: {:ok, %{"summary" => 1}})
-      AI.generate(request, provider: TestProvider, reply: fn request -> ... end)
+  AI provider for tests that returns whatever the test passes as `reply:`.
   """
 
   @behaviour AgentProof.AI.Provider

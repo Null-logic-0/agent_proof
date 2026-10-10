@@ -74,7 +74,6 @@
 
   <.edit_agent_modal :if={@edit_form} form={@edit_form} card={@editing} />
 
-  <%!-- Product suggestions for every card's search box. --%>
   <datalist id="catalog-products">
     <option :for={name <- @product_names} value={name} />
   </datalist>

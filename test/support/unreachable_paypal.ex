@@ -1,8 +1,6 @@
 defmodule AgentProof.UnreachablePayPal do
   @moduledoc """
-  PayPal adapter that fails every call as if PayPal were unreachable, used to
-  test the fallback to `AgentProof.PayPal.Demo` and that Demo Mode bypasses
-  the configured adapter.
+  PayPal adapter that fails every call as if PayPal were unreachable.
   """
 
   @behaviour AgentProof.PayPal.Client

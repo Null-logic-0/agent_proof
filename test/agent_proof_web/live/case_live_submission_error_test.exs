@@ -1,6 +1,5 @@
 defmodule AgentProofWeb.CaseLiveSubmissionErrorTest do
-  # async: false because it swaps the PayPal adapter in application config.
-  # ExUnit runs this only after every async test has finished.
+  # async: false, so it runs after all async tests: it swaps the PayPal adapter in config.
   use AgentProofWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -38,7 +37,6 @@ defmodule AgentProofWeb.CaseLiveSubmissionErrorTest do
     assert has_element?(view, "#submission-error", "PayPal isn't reachable")
     assert has_element?(view, "#evidence-status", "Approved")
 
-    # PayPal recovers; Try again submits.
     Application.put_env(:agent_proof, :paypal_adapter, original)
     view |> element("#submission-error-retry") |> render_click()
     render_async(view)

@@ -1,10 +1,6 @@
 defmodule AgentProof.Fixtures do
   @moduledoc """
   Builds valid records for tests.
-
-  Transactions, disputes, and evidence have no public create function yet
-  (their business rules arrive in later steps), so their fixtures insert
-  through the schema changeset directly.
   """
 
   alias AgentProof.{Agents, Authorizations, Disputes, Repo, Transactions}
@@ -64,11 +60,7 @@ defmodule AgentProof.Fixtures do
   end
 
   @doc """
-  A full case: an agent buys headphones (Demo PayPal), the order is delivered,
-  then the customer disputes it. Returns the dispute as loaded by `get_case!/1`.
-
-  Options: `:reason` (default `:unauthorized`) and `:delivered_at`
-  (default: a day ago; `nil` for no fulfillment).
+  A delivered, then disputed headphone purchase. Options: `:reason` and `:delivered_at`.
   """
   def disputed_case_fixture(opts \\ []) do
     authorization = authorization_fixture(agent_fixture())

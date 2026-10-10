@@ -1,7 +1,6 @@
 defmodule AgentProof.AI.FailingProvider do
   @moduledoc """
-  AI provider that always fails as if the AI server were down, used to test
-  the investigation's error state.
+  AI provider that always fails as if the AI server were down.
   """
 
   @behaviour AgentProof.AI.Provider

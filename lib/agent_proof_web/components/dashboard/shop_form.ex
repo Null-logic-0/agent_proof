@@ -2,8 +2,7 @@ defmodule AgentProofWeb.ShopForm do
   use AgentProofWeb, :html
 
   @doc """
-  The form that sends the agent shopping for one authorization. Its `shop`
-  event is handled by the LiveView that renders it.
+  Form that sends an agent shopping.
   """
   attr :form, Phoenix.HTML.Form, required: true
   attr :authorization_id, :integer, required: true

@@ -1,7 +1,6 @@
 defmodule AgentProofWeb.Format do
   @moduledoc """
-  Display formatting shared by LiveViews and components. Imported into every
-  template through `html_helpers` in `AgentProofWeb`.
+  Display formatting shared by all templates.
   """
 
   @doc """

@@ -1,11 +1,6 @@
 defmodule AgentProof.Agents.ShoppingAgent do
   @moduledoc """
-  A deterministic stand-in for an external AI shopping agent.
-
-  It searches the catalog, picks the first match, and hands its action log to
-  `AgentProof.Transactions.purchase/3`. Simulated for the MVP: a real agent
-  would choose products itself and report the same kind of log. The agent
-  never checks the budget; the purchase policy decides.
+  A scripted stand-in for a real AI shopping agent: it buys the first catalog match.
   """
 
   alias AgentProof.{Catalog, Transactions}

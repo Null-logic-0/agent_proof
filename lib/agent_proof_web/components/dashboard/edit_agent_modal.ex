@@ -2,9 +2,7 @@ defmodule AgentProofWeb.EditAgentModal do
   use AgentProofWeb, :html
 
   @doc """
-  Modal for editing an agent's name, spending limit, and description. Spent
-  is shown read-only: it is calculated from real purchases. Its events
-  (`validate_edit`, `save_edit`, `cancel_edit`) are handled by the LiveView.
+  Modal for editing an agent's name, spending limit, and description.
   """
   attr :form, Phoenix.HTML.Form, required: true
   attr :card, :map, required: true, doc: "the authorization and its spent amount"

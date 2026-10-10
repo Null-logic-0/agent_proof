@@ -7,21 +7,12 @@ defmodule AgentProof.Disputes do
   alias AgentProof.Disputes.Dispute
   alias AgentProof.Transactions.Transaction
 
-  # Simulated seller response window.
   @response_window_days 10
 
   def get_dispute!(id), do: Repo.get!(Dispute, id)
 
   @doc """
-  Opens a customer dispute against a paid transaction.
-
-  Disputes are simulated: merchants cannot create PayPal disputes through the
-  API, so the PayPal dispute id is a recognizable `DEMO-PP-D-` id. Only
-  `reason` is taken from `attrs`.
-
-  Options:
-
-    * `:today` - the date the dispute opens (defaults to today, UTC)
+  Opens a simulated dispute on a paid transaction. Only `reason` is read from `attrs`.
   """
   def open_dispute(transaction, attrs, opts \\ [])
 
@@ -41,8 +32,7 @@ defmodule AgentProof.Disputes do
   def open_dispute(%Transaction{}, _attrs, _opts), do: {:error, :not_disputable}
 
   @doc """
-  Marks a dispute as submitted to PayPal. Final: nothing changes a submitted
-  dispute or its evidence afterwards.
+  Marks the dispute as submitted. This is final.
   """
   def mark_submitted(%Dispute{} = dispute) do
     dispute
@@ -53,9 +43,6 @@ defmodule AgentProof.Disputes do
     |> Repo.update()
   end
 
-  @doc """
-  Marks a dispute as having a validated evidence package.
-  """
   def mark_evidence_ready(%Dispute{} = dispute) do
     dispute
     |> Ecto.Changeset.change(status: :evidence_ready)
@@ -63,8 +50,7 @@ defmodule AgentProof.Disputes do
   end
 
   @doc """
-  Loads a dispute with everything an investigation needs: its transaction,
-  the authorization, the agent, and the evidence package (if any).
+  Loads a dispute with its transaction, agent, and evidence.
   """
   def get_case!(id) do
     Dispute

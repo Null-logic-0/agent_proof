@@ -1,10 +1,6 @@
 defmodule AgentProof.AI.EvidenceSchema do
   @moduledoc """
-  JSON Schema for the evidence package a model must return.
-
-  Written for OpenAI's strict Structured Outputs (every property required,
-  `additionalProperties: false` on every object); Ollama accepts it as is.
-  Models read the `description`s, so they are part of the prompt.
+  JSON Schema for the AI's evidence. Models read its descriptions as part of the prompt.
   """
 
   def json_schema do

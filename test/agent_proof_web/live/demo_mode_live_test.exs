@@ -1,7 +1,6 @@
 defmodule AgentProofWeb.DemoModeLiveTest do
-  # async: false because it swaps the PayPal adapter and the AI provider in
-  # application config for ones that are down.
-  # ExUnit runs this only after every async test has finished.
+  # async: false, so it runs after all async tests: it swaps PayPal and the AI for ones
+  # that are down.
   use AgentProofWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest

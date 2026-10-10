@@ -30,7 +30,6 @@ defmodule AgentProofWeb.DashboardLiveTest do
 
   describe "infinite scroll" do
     setup do
-      # Five agents, oldest first.
       %{
         authorizations:
           for(n <- 1..5, do: authorization_fixture(agent_fixture(%{name: "Bot #{n}"})))
@@ -255,6 +254,26 @@ defmodule AgentProofWeb.DashboardLiveTest do
       assert has_element?(view, "#transaction-#{transaction.id}", "completed")
       assert has_element?(view, "#meter-#{authorization.id}", "189.99")
       assert has_element?(view, "#flash-info", "bought Sony WH-1000XM5 Headphones")
+    end
+
+    test "a new card's search box starts empty, not with a guess",
+         %{conn: conn, authorization: authorization} do
+      view = live_dashboard(conn)
+
+      assert has_element?(view, "#shop-query-#{authorization.id}[placeholder]")
+      refute has_element?(view, "#shop-query-#{authorization.id}[value]:not([value=''])")
+    end
+
+    test "a blank search asks for a query and buys nothing",
+         %{conn: conn, authorization: authorization} do
+      view = live_dashboard(conn)
+
+      view
+      |> form("#shop-form-#{authorization.id}", shop: %{query: "   "})
+      |> render_submit(%{authorization_id: authorization.id})
+
+      assert has_element?(view, "#flash-error", "Tell the agent what to look for first.")
+      assert Transactions.list_transactions() == []
     end
 
     test "the search box keeps what was searched for after shopping",

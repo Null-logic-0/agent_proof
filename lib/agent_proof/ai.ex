@@ -1,23 +1,13 @@
 defmodule AgentProof.AI do
   @moduledoc """
-  The AI boundary. Business logic calls these functions, never a provider
-  directly.
-
-  The provider is chosen per call: `opts[:provider]`, otherwise
-  `config :agent_proof, :ai_provider`. The remaining `opts` are passed
-  through to the provider.
+  Entry point for AI calls. The provider comes from `opts[:provider]` or config.
   """
 
   alias AgentProof.AI.{EvidenceSchema, Prompt}
   alias AgentProof.Transactions
 
   @doc """
-  Generates an evidence package for a disputed transaction.
-
-  `transaction` must have `authorization: :agent` preloaded, as returned
-  inside `AgentProof.Disputes.get_case!/1`. Returns the provider's raw,
-  unvalidated evidence map. `opts[:feedback]` asks the model to correct a
-  previously rejected answer.
+  Asks the AI provider for evidence about a dispute. The answer is not validated yet.
   """
   def generate_evidence(transaction, dispute, opts \\ []) do
     facts = Transactions.reconstruct(transaction, dispute)
@@ -37,9 +27,6 @@ defmodule AgentProof.AI do
 
   def provider_name(opts \\ []), do: provider(opts).name()
 
-  @doc """
-  The provider module these `opts` select.
-  """
   def provider(opts \\ []) do
     Keyword.get_lazy(opts, :provider, fn ->
       Application.fetch_env!(:agent_proof, :ai_provider)

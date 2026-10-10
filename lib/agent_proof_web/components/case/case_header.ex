@@ -4,8 +4,7 @@ defmodule AgentProofWeb.CaseHeader do
   import AgentProofWeb.StatusBadge
 
   @doc """
-  The case's headline: what was bought, by which agent, for how much, and
-  where the PayPal and dispute records stand.
+  The case's headline: product, agent, amount, and status.
   """
   attr :transaction, :map, required: true, doc: "a transaction from Transactions.get_case!/1"
 

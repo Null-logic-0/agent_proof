@@ -21,15 +21,11 @@ defmodule AgentProof.Authorizations do
   def get_authorization!(id), do: Repo.get!(Authorization, id)
 
   @doc """
-  Lists authorizations, newest first, with their agent and transactions.
-
-  Without `params` it returns every authorization. With pagination params
-  (`%{"page" => "2", "page_size" => "20"}`) it returns `{authorizations, meta}`
-  from `Pagex.paginate/3`.
+  Lists authorizations, newest first. With pagination params, returns
+  `{authorizations, meta}`.
   """
   def list_authorizations(params \\ nil) do
-    # Preloads are part of the query (not Repo.preload/2, which needs loaded
-    # records), so they also apply to each page Pagex fetches.
+    # Preloading in the query applies it to every page Pagex fetches.
     query =
       from(a in Authorization,
         order_by: [desc: a.id],
@@ -43,13 +39,8 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
-  Lists up to `limit` authorizations older than `before_id` (from the newest
-  when `nil`), newest first, with activity preloaded. Returns
-  `{authorizations, more?}`.
-
-  Keyset pagination: each load continues from the last id the caller has, so
-  adding or deleting agents between loads never skips or repeats one (as an
-  offset would). One extra row is fetched to learn whether more exist.
+  Lists up to `limit` authorizations older than `before_id`, as `{authorizations, more?}`.
+  Keyset pagination: adding or deleting agents never skips or repeats one.
   """
   def list_authorizations_page(before_id, limit) do
     query =
@@ -65,9 +56,6 @@ defmodule AgentProof.Authorizations do
     {Enum.take(rows, limit), length(rows) > limit}
   end
 
-  @doc """
-  Preloads an authorization's agent and transactions (newest first).
-  """
   def preload_activity(authorization_or_authorizations) do
     Repo.preload(authorization_or_authorizations,
       agent: [],
@@ -76,11 +64,8 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
-  Changeset for the form that authorizes a new agent: one form, two tables.
-
-  It is schemaless, because it does not map to a single schema. Its errors
-  come from the real `Agent` and `Authorization` changesets, so the rules are
-  defined once.
+  Form changeset for authorizing a new agent. Errors come from the `Agent` and
+  `Authorization` changesets.
   """
   def change_grant(attrs \\ %{}) do
     grant = Ecto.Changeset.cast({%{currency: "USD"}, @grant_types}, attrs, Map.keys(@grant_types))
@@ -95,8 +80,7 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
-  Creates an agent and its authorization atomically from the grant form.
-  Returns the authorization with its activity preloaded.
+  Creates the agent and its authorization together.
   """
   def grant(attrs) do
     changeset = change_grant(attrs)
@@ -117,9 +101,7 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
-  Changeset for editing an authorized agent: its name, spending limit, and
-  description. The currency is fixed. `authorization` must have its agent
-  preloaded. Errors come from the real `Agent` and `Authorization` changesets.
+  Form changeset for editing an agent's name, spending limit, and description.
   """
   def change_settings(%Authorization{agent: %Agent{} = agent} = authorization, attrs \\ %{}) do
     data = %{
@@ -143,10 +125,7 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
-  Updates an agent's name and its authorization's limit and description
-  atomically. Allowed after purchases: each purchase recorded the limit and
-  description it was checked against, so its evidence keeps those terms.
-  Returns the authorization with fresh activity preloaded.
+  Saves an agent's new name, limit, and description. Past purchases keep their old terms.
   """
   def update_settings(%Authorization{agent: %Agent{} = agent} = authorization, attrs) do
     changeset = change_settings(authorization, attrs)
@@ -170,12 +149,7 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
-  Deletes an agent and its authorizations, but only if none of them has any
-  transaction: purchase records are dispute evidence and are always kept.
-
-  The authorizations are locked first, so a purchase cannot start while the
-  agent is being deleted. Returns the deleted agent and the ids of the
-  deleted authorizations.
+  Deletes an agent, unless it has purchases: they are dispute evidence.
   """
   def delete_agent(%Agent{id: agent_id} = agent) do
     Repo.transact(fn ->
@@ -200,8 +174,7 @@ defmodule AgentProof.Authorizations do
     end)
   end
 
-  # Copies errors from a schema changeset onto the form changeset (renaming
-  # fields where needed), unless the field already has an error, e.g. from cast.
+  # Copies schema errors onto the form changeset, unless the field already has one.
   defp copy_errors(changeset, source, renames) do
     Enum.reduce(source.errors, changeset, fn {field, {message, opts}}, changeset ->
       field = Keyword.get(renames, field, field)
@@ -213,10 +186,7 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
-  Reloads `authorization` with a row lock (`SELECT ... FOR UPDATE`).
-
-  Must be called inside `Repo.transact/2`. Other transactions that try to lock
-  the same row wait until this one commits or rolls back.
+  Reloads the authorization with a row lock. Call it inside `Repo.transact/2`.
   """
   def lock_authorization!(%Authorization{id: id}) do
     Authorization
@@ -226,9 +196,7 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
-  Creates an authorization for `agent`.
-
-  `agent_id` comes from the agent struct, never from `attrs`.
+  Creates an authorization for `agent`. The agent id never comes from `attrs`.
   """
   def create_authorization(%Agent{} = agent, attrs) do
     agent
@@ -242,11 +210,7 @@ defmodule AgentProof.Authorizations do
   end
 
   @doc """
-  Decides whether a purchase fits within `authorization`.
-
-  The budget is cumulative: `spent` (see `AgentProof.Transactions.spent_amount/1`)
-  plus `amount` must not exceed `max_amount`. This function is pure; it is not
-  safe against concurrent purchases on its own.
+  Checks whether a purchase fits the budget. Pure: callers must hold the row lock.
   """
   def check_purchase(
         %Authorization{} = authorization,

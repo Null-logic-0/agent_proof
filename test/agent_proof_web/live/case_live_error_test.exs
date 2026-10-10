@@ -1,6 +1,5 @@
 defmodule AgentProofWeb.CaseLiveErrorTest do
-  # async: false because it swaps the AI provider in application config.
-  # ExUnit runs this only after every async test has finished.
+  # async: false, so it runs after all async tests: it swaps the AI provider in config.
   use AgentProofWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -58,7 +57,6 @@ defmodule AgentProofWeb.CaseLiveErrorTest do
     refute has_element?(view, "#evidence-summary")
     assert has_element?(view, "#case-dispute-status", "open")
 
-    # The AI is fixed; Try again runs the investigation.
     use_ai(original)
     view |> element("#investigation-error-retry") |> render_click()
     render_async(view)

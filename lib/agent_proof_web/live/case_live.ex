@@ -25,7 +25,6 @@ defmodule AgentProofWeb.CaseLive do
      |> load_case(id)}
   end
 
-  # Simulated carrier: records a UPS delivery that happens now.
   @impl true
   def handle_event("deliver", _params, socket) do
     transaction = socket.assigns.transaction
@@ -45,7 +44,6 @@ defmodule AgentProofWeb.CaseLive do
     end
   end
 
-  # Simulated customer: opens a dispute with the chosen reason.
   def handle_event("open_dispute", %{"dispute" => params}, socket) do
     case Disputes.open_dispute(socket.assigns.transaction, params) do
       {:ok, _dispute} ->
@@ -61,8 +59,7 @@ defmodule AgentProofWeb.CaseLive do
     end
   end
 
-  # Runs the AI in a task: it can take 5–15 seconds, and the page stays
-  # responsive meanwhile. A second click while it runs is ignored.
+  # The AI can take seconds, so it runs in a task. Repeat clicks are ignored.
   def handle_event("investigate", _params, socket) do
     %{transaction: transaction, investigating: investigating} = socket.assigns
 
@@ -100,7 +97,6 @@ defmodule AgentProofWeb.CaseLive do
     end
   end
 
-  # Opens the preview: exactly what submit_evidence would send.
   def handle_event("prepare_submission", _params, socket) do
     submission = Evidence.prepare_submission(socket.assigns.transaction.dispute.evidence)
     {:noreply, assign(socket, submission: submission, submission_error: nil)}
@@ -110,10 +106,7 @@ defmodule AgentProofWeb.CaseLive do
     {:noreply, assign(socket, submission: nil, submission_error: nil)}
   end
 
-  # A real PayPal call can take a moment, so it runs in a task. Demo Mode
-  # doesn't apply here: the dispute decides. Disputes created in AgentProof
-  # always go to PayPal.Demo, and a real dispute is never marked submitted
-  # unless PayPal received the evidence.
+  # Runs in a task. Demo Mode doesn't apply: the dispute decides where evidence goes.
   def handle_event("submit_evidence", _params, socket) do
     package = socket.assigns.transaction.dispute.evidence
 
@@ -196,7 +189,6 @@ defmodule AgentProofWeb.CaseLive do
     |> assign(:page_title, transaction.product_name)
     |> assign(:transaction, transaction)
     |> assign(:timeline, Transactions.timeline(transaction))
-    # The code-verified checks shown beside the evidence (the AI's input).
     |> assign(
       :facts,
       transaction.dispute && Transactions.reconstruct(transaction, transaction.dispute)
@@ -214,7 +206,6 @@ defmodule AgentProofWeb.CaseLive do
   defp submission_error(_reason),
     do: "PayPal rejected the submission. Your approved evidence is safe; please try again."
 
-  # Plain-language reasons; the details are in the server log.
   defp investigation_error({:transport, _reason}),
     do: "#{AI.provider_name()} isn't reachable. Is the AI server running?"
 

@@ -105,8 +105,7 @@ defmodule AgentProof.AITest do
   end
 
   describe "EvidenceSchema" do
-    # OpenAI strict mode: every object lists all its properties as required
-    # and forbids extra ones.
+    # OpenAI strict mode: every property is required and extra ones are forbidden.
     defp assert_strict(%{"type" => "object", "properties" => properties} = schema) do
       assert schema["additionalProperties"] == false
       assert Enum.sort(schema["required"]) == Enum.sort(Map.keys(properties))

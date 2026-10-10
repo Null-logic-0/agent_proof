@@ -2,9 +2,7 @@ defmodule AgentProofWeb.DemoScenarioCard do
   use AgentProofWeb, :html
 
   @doc """
-  Shown on the dashboard while Demo Mode is on: one click builds a complete
-  disputed case (see `AgentProof.DemoScenario`). Its `run_demo_scenario`
-  event is handled by the LiveView.
+  Dashboard card that runs the demo scenario.
   """
   def demo_scenario_card(assigns) do
     ~H"""

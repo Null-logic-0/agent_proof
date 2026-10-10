@@ -1,9 +1,6 @@
 defmodule AgentProof.PayPal.Demo do
   @moduledoc """
-  Deterministic PayPal adapter: no network, no credentials, always succeeds.
-
-  IDs are derived from the order's `reference_id`, so the same transaction
-  always gets the same IDs.
+  PayPal adapter without network calls: it always succeeds, with IDs based on the order.
   """
 
   @behaviour AgentProof.PayPal.Client

@@ -1,10 +1,6 @@
 defmodule AgentProof.TransactionsConcurrencyTest do
-  # Runs outside the SQL sandbox on purpose. Inside the sandbox every process
-  # shares one connection, so queries run one at a time and a race can never
-  # happen. Here each task gets its own real connection and real commits.
-  #
-  # `async: false` guarantees ExUnit runs this after all async tests finish,
-  # so no other test can see the rows committed here.
+  # Runs outside the SQL sandbox, so each task has its own connection and a real race can
+  # happen. async: false runs it after all async tests, so none of them sees its rows.
   use ExUnit.Case, async: false
 
   import Ecto.Query

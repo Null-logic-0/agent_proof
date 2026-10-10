@@ -1,0 +1,55 @@
+# AgentProof and Postgres in containers:
+#
+#     docker compose up --build
+#
+# then open http://localhost:4000. The database is migrated and, when empty,
+# seeded on every start.
+#
+# Ollama keeps running natively on your machine (containers can't use the
+# Mac's GPU); the app reaches it at host.docker.internal. When it isn't
+# running, investigations fall back to AI.Demo, labelled "demo-fallback".
+# PayPal Sandbox is used when .env sets PAYPAL_CLIENT_ID and
+# PAYPAL_SECRET_KEY (see .env.example); otherwise PayPal.Demo.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agent_proof
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agent_proof"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ecto://postgres:postgres@db/agent_proof
+      # A demo-only key for running locally, like the one in config/dev.exs.
+      # Never reuse it for a real deployment.
+      SECRET_KEY_BASE: LwFuyGANrFQcQo02MiMVKLSwsg/aUkR9KrhNIjpJzgStab+0dbnAxLdEw5tTNizo
+      PHX_HOST: localhost
+      OLLAMA_URL: http://host.docker.internal:11434
+    extra_hosts:
+      # Already defined by Docker Desktop; needed on Linux.
+      - "host.docker.internal:host-gateway"
+    command:
+      - /bin/sh
+      - -c
+      - bin/migrate && bin/agent_proof eval AgentProof.Release.seed && exec bin/server
+
+volumes:
+  db_data:

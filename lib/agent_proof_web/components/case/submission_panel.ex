@@ -2,9 +2,7 @@ defmodule AgentProofWeb.SubmissionPanel do
   use AgentProofWeb, :html
 
   @doc """
-  Preview of what will be sent to PayPal, with the final Submit button. Its
-  `submit_evidence` and `cancel_submission` events are handled by the
-  LiveView.
+  Preview of the exact PayPal request, with the Submit button.
   """
   attr :submission, :map, required: true, doc: "from Evidence.prepare_submission/1"
   attr :submitting, :boolean, required: true

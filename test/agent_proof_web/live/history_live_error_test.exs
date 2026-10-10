@@ -1,7 +1,5 @@
 defmodule AgentProofWeb.HistoryLiveErrorTest do
-  # async: false because it swaps the history source in application config.
-  # ExUnit runs this only after every async test has finished, so no other
-  # test can see the failing source.
+  # async: false, so it runs after all async tests: it swaps the history source.
   use AgentProofWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -25,7 +23,6 @@ defmodule AgentProofWeb.HistoryLiveErrorTest do
         assert has_element?(view, "#history-error", "Couldn't load the transaction history")
         refute has_element?(view, "#history-error", "database unavailable")
 
-        # The database recovers; Try again loads the page.
         Application.delete_env(:agent_proof, :history_source)
         view |> element("#history-error-retry") |> render_click()
         render_async(view)

@@ -1,7 +1,6 @@
 defmodule AgentProof.AI.Prompt do
   @moduledoc """
-  Prompts for evidence generation. The facts carry the case; the system
-  prompt carries the rules.
+  Builds the prompts for evidence generation.
   """
 
   @system """
@@ -18,10 +17,6 @@ defmodule AgentProof.AI.Prompt do
 
   def system, do: @system
 
-  @doc """
-  The user message: the dispute, guidance for its reason, and the facts as
-  JSON. `feedback` (from validation) asks the model to correct a rejected answer.
-  """
   def user(%{"dispute" => %{"reason" => reason}} = facts, feedback \\ nil) do
     """
     The customer opened a PayPal dispute with reason "#{reason}". #{guidance(reason)}

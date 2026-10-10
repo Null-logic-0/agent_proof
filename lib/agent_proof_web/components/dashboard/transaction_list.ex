@@ -4,7 +4,7 @@ defmodule AgentProofWeb.TransactionList do
   import AgentProofWeb.StatusBadge
 
   @doc """
-  An authorization's purchases, newest first. Renders nothing when empty.
+  An agent's latest purchases, newest first.
   """
   attr :transactions, :list, required: true
 

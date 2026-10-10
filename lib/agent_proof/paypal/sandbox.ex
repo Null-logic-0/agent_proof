@@ -1,22 +1,6 @@
 defmodule AgentProof.PayPal.Sandbox do
   @moduledoc """
-  PayPal adapter for the PayPal Sandbox REST API.
-
-  Real: the OAuth client-credentials token, order creation, and evidence
-  submission (for disputes PayPal knows).
-
-  Simulated: capture. PayPal only captures orders that a buyer has approved;
-  an agent paying with no buyer present needs PayPal Vault, which is out of
-  scope for the MVP. Captures are returned with `simulated: true`.
-
-  Configuration (`config :agent_proof, AgentProof.PayPal.Sandbox`):
-
-    * `:base_url` - REST API host, e.g. "https://api-m.sandbox.paypal.com"
-    * `:client_id`, `:client_secret` - the REST app's credentials
-    * `:req_options` - extra `Req` options, applied last (tests use `Req.Test`)
-
-  Errors are normalized to `{:paypal, status, name}` or `{:transport, reason}`
-  so that tokens and secrets never reach logs or the database.
+  PayPal adapter for the Sandbox REST API. Capture is simulated: it needs a buyer's approval.
   """
 
   @behaviour AgentProof.PayPal.Client
@@ -60,9 +44,7 @@ defmodule AgentProof.PayPal.Sandbox do
   end
 
   @doc """
-  Real provide-evidence call: multipart/form-data with the JSON payload in a
-  part named `input`. PayPal accepts it only while the dispute is
-  `WAITING_FOR_SELLER_RESPONSE`.
+  Sends evidence as multipart form data, with the JSON in a part named `input`.
   """
   @impl true
   def submit_evidence(dispute_id, payload, _opts) do
@@ -78,8 +60,7 @@ defmodule AgentProof.PayPal.Sandbox do
   end
 
   @doc """
-  Fetches an order from PayPal. Not part of the adapter contract; used to
-  verify that an order really exists at PayPal.
+  Fetches an order from PayPal, to check that it really exists.
   """
   def get_order(order_id) do
     with {:ok, token} <- access_token(),

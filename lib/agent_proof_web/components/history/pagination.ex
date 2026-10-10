@@ -2,10 +2,8 @@ defmodule AgentProofWeb.Pagination do
   use AgentProofWeb, :html
 
   @doc """
-  Page links for offset pagination. Hidden when everything fits on one page.
-
-  `page_path` turns a page number into a path, so the caller keeps its
-  verified route: `page_path={&page_path/1}`.
+  Page links, hidden when there is only one page. `page_path` turns a page number into a
+  path.
   """
   attr :meta, Pagex.Meta, required: true
   attr :page_path, :any, required: true

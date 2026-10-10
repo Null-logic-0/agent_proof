@@ -1,8 +1,6 @@
 defmodule AgentProof.PayPal.Client do
   @moduledoc """
-  The contract every PayPal adapter implements.
-
-  Adapters return AgentProof's own small maps, never PayPal's raw JSON.
+  Behaviour every PayPal adapter implements.
   """
 
   @type order :: %{
@@ -29,9 +27,7 @@ defmodule AgentProof.PayPal.Client do
               {:ok, capture()} | {:error, term()}
 
   @doc """
-  Sends evidence for a dispute (PayPal's provide-evidence). `payload` is the
-  JSON body built by `AgentProof.PayPal.EvidencePayload`. `simulated: true`
-  means nothing was sent to PayPal.
+  Sends dispute evidence to PayPal. `simulated: true` means nothing was sent.
   """
   @callback submit_evidence(dispute_id :: String.t(), payload :: map(), opts :: keyword()) ::
               {:ok, %{simulated: boolean()}} | {:error, term()}

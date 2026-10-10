@@ -1,12 +1,6 @@
 defmodule AgentProof.PayPal.EvidencePayload do
   @moduledoc """
-  Maps an AgentProof evidence package to the JSON body of PayPal's
-  provide-evidence call. PayPal's vocabulary stays at this boundary.
-
-  PayPal accepts `PROOF_OF_FULFILLMENT` (carrier and tracking number in
-  `evidence_info.tracking_info`), `PROOF_OF_REFUND`, and `OTHER` (notes or
-  documents). It has no evidence type for an AI agent's authorization, so
-  that argument goes into the `OTHER` notes.
+  Turns an evidence package into the body of PayPal's provide-evidence request.
   """
 
   # PayPal's docs state no limit for notes; this is a conservative cap.
@@ -40,8 +34,7 @@ defmodule AgentProof.PayPal.EvidencePayload do
     ]
   end
 
-  # The agent's authorization and the system's budget check: the heart of an
-  # AgentProof case.
+  # PayPal has no evidence type for an agent's authorization, so it goes in the notes.
   defp agent_evidence(package) do
     %{
       "evidence_type" => "OTHER",

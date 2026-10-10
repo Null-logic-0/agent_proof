@@ -1,8 +1,6 @@
 defmodule AgentProof.FailingPayPal do
   @moduledoc """
-  PayPal adapter whose evidence submission always fails as if PayPal were
-  unreachable, used to test the submission's error state. Orders behave like
-  `AgentProof.PayPal.Demo`.
+  PayPal adapter whose evidence submission always fails; orders work like PayPal.Demo.
   """
 
   @behaviour AgentProof.PayPal.Client

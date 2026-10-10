@@ -1,19 +1,6 @@
 defmodule AgentProof.Transactions.Timeline do
   @moduledoc """
-  Turns a transaction's stored records into display events, oldest first.
-
-  Pure: it works on a transaction preloaded with `authorization: :agent` and
-  `dispute: :evidence` (see `AgentProof.Transactions.get_case!/1`). It reads
-  the same records the AI evidence is built from, so the page never shows a
-  fact the evidence lacks.
-
-  Each event is a map:
-
-      %{id: "authorization", at: ~U[...], actor: :customer, title: "...",
-        details: "..." | nil, status: :ok | :warning | :error, simulated?: false}
-
-  Actors: `:customer`, `:agent`, `:system` (AgentProof itself), `:paypal`,
-  `:carrier`, `:ai`, `:merchant`.
+  Turns a transaction's records into timeline events, oldest first.
   """
 
   alias AgentProof.Agents.Agent
@@ -29,8 +16,7 @@ defmodule AgentProof.Transactions.Timeline do
     |> Enum.sort_by(& &1.at, DateTime)
   end
 
-  # Uses the terms recorded when the purchase was checked, like the evidence
-  # does, so a later edit of the authorization never rewrites history.
+  # The terms recorded at purchase time, so a later edit never rewrites history.
   defp authorization_event(%Transaction{authorization: authorization} = transaction) do
     terms =
       case Enum.find(transaction.agent_actions, &(&1.action == :budget_check)) do
@@ -106,7 +92,6 @@ defmodule AgentProof.Transactions.Timeline do
     )
   end
 
-  # In the MVP, deliveries are entered with the case page's simulated carrier.
   defp fulfillment_events(%Transaction{fulfillment: nil}), do: []
 
   defp fulfillment_events(%Transaction{fulfillment: fulfillment}) do

@@ -12,7 +12,6 @@ defmodule AgentProof.Evidence.GenerateForDisputeTest do
     %{dispute: disputed_case_fixture()}
   end
 
-  # A correct, grounded answer: what AI.Demo writes for this case.
   defp valid_answer(dispute) do
     {:ok, answer} = AI.generate_evidence(dispute.transaction, dispute, provider: AI.Demo)
     answer

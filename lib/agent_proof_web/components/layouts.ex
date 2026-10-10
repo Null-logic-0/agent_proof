@@ -45,18 +45,29 @@ defmodule AgentProofWeb.Layouts do
     assigns =
       assign(assigns,
         paypal_adapter: AgentProof.PayPal.adapter_name(demo_opts),
-        ai_provider: AgentProof.AI.provider_name(demo_opts)
+        ai_provider: AgentProof.AI.provider_name(demo_opts),
+        history_page?: String.starts_with?(assigns.current_path, "/history")
       )
 
     ~H"""
     <header class="navbar flex-wrap gap-x-2 gap-y-2 border-b border-base-300 bg-base-100 px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
+      <div class="flex flex-1 items-center gap-3 sm:gap-4">
         <.link navigate={~p"/"} class="flex w-fit items-center gap-2.5">
           <span class="grid size-8 place-items-center rounded-lg bg-primary text-primary-content">
             <.icon name="hero-shield-check" class="size-5" />
           </span>
           <span class="text-base font-semibold tracking-tight">AgentProof</span>
         </.link>
+        <nav aria-label="Main">
+          <.link
+            id="nav-history"
+            navigate={~p"/history"}
+            aria-current={@history_page? && "page"}
+            class={["btn btn-ghost btn-sm gap-1.5", @history_page? && "btn-active"]}
+          >
+            <.icon name="hero-clock" class="size-4" /> History
+          </.link>
+        </nav>
       </div>
       <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
         <.demo_mode_switch
@@ -94,8 +105,7 @@ defmodule AgentProofWeb.Layouts do
   attr :label, :string, required: true
   attr :value, :string, required: true
 
-  # Shows which PayPal adapter or AI provider is active. Demo is the warning
-  # color, so it is obvious when nothing real is being called.
+  # Shows the active PayPal adapter or AI provider; demo uses the warning color.
   defp mode_badge(assigns) do
     ~H"""
     <span

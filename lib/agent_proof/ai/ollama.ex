@@ -1,19 +1,6 @@
 defmodule AgentProof.AI.Ollama do
   @moduledoc """
   AI provider for a local Ollama server.
-
-  Uses structured output: the request's JSON Schema is sent as `format`, so
-  the model can only produce JSON of that shape. The shape is guaranteed;
-  the content still has to be validated.
-
-  Configuration (`config :agent_proof, AgentProof.AI.Ollama`):
-
-    * `:base_url` - the Ollama server, e.g. "http://localhost:11434"
-    * `:model` - a pulled model, e.g. "llama3.2"
-    * `:req_options` - extra `Req` options, applied last (tests use `Req.Test`)
-
-  Errors are normalized to `{:ollama, status, message}`, `{:transport, reason}`,
-  or `:invalid_json`.
   """
 
   @behaviour AgentProof.AI.Provider

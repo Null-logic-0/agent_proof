@@ -19,9 +19,7 @@ defmodule AgentProof.Transactions do
   end
 
   @doc """
-  One page of all transactions, newest first, each with its authorization and
-  agent preloaded. `params` are Pagex pagination params, e.g.
-  `%{"page" => "2", "page_size" => "20"}`. Returns `{transactions, meta}`.
+  One page of transactions, newest first, with their agent. Returns `{transactions, meta}`.
   """
   def list_transaction_history(params) do
     Transaction
@@ -33,8 +31,7 @@ defmodule AgentProof.Transactions do
   def get_transaction!(id), do: Repo.get!(Transaction, id)
 
   @doc """
-  Loads a transaction with everything its case page needs: the authorization
-  and agent, and the dispute with its evidence package.
+  Loads a transaction with its agent, dispute, and evidence.
   """
   def get_case!(id) do
     Transaction
@@ -42,27 +39,17 @@ defmodule AgentProof.Transactions do
     |> Repo.preload([authorization: :agent, dispute: :evidence], force: true)
   end
 
-  @doc """
-  The transaction's story as display events, oldest first. Pure; takes the
-  struct from `get_case!/1`.
-  """
   defdelegate timeline(transaction), to: AgentProof.Transactions.Timeline, as: :build
 
   @doc """
-  Rebuilds a disputed transaction as plain facts, including computed checks.
-
-  Pure; `transaction` must have `authorization: :agent` preloaded, as
-  returned inside `AgentProof.Disputes.get_case!/1`.
+  Rebuilds a disputed transaction as plain facts and checks.
   """
   defdelegate reconstruct(transaction, dispute),
     to: AgentProof.Transactions.Reconstruction,
     as: :facts
 
   @doc """
-  Total amount committed against `authorization`.
-
-  Created orders count because they still reserve budget; failed ones never
-  charged anyone.
+  Total amount committed against the authorization. Failed purchases don't count.
   """
   def spent_amount(%Authorization{id: authorization_id}) do
     Transaction
@@ -73,23 +60,8 @@ defmodule AgentProof.Transactions do
   end
 
   @doc """
-  Buys `product` for an agent in three phases:
-
-    1. Reserve: lock the authorization, check the budget, and insert a
-       `:created` transaction in one database transaction, so concurrent
-       purchases cannot overspend it.
-    2. Pay: create and capture a PayPal order, outside the lock.
-    3. Finalize: mark the transaction `:completed`, or `:failed`, which
-       releases the reserved budget.
-
-  `agent_actions` is the agent's own log (untrusted input). It is validated
-  and stored with the transaction, followed by AgentProof's system actions.
-
-  Options:
-
-    * `:adapter` - the PayPal adapter (see `AgentProof.PayPal`)
-    * `:fallback` - when a real adapter can't create the order, pay through
-      `AgentProof.PayPal.Demo` instead (default `true`)
+  Buys a product for an agent: locks and checks the budget, pays with PayPal, then saves the
+  result. Pass `fallback: false` to stop PayPal.Demo taking over when PayPal fails.
   """
   def purchase(authorization, product, agent_actions \\ [], opts \\ []) do
     with {:ok, agent_actions} <- AgentAction.from_agent(agent_actions),
@@ -115,8 +87,7 @@ defmodule AgentProof.Transactions do
             "amount" => money(price),
             "max_amount" => money(authorization.max_amount),
             "currency" => currency,
-            # The terms this purchase was checked against, kept even if the
-            # authorization is edited later.
+            # The terms this purchase was checked against, kept if the authorization changes.
             "description" => authorization.description
           })
 
@@ -155,10 +126,8 @@ defmodule AgentProof.Transactions do
     end
   end
 
-  # A real adapter that can't create the order (unreachable, bad credentials,
-  # an API error) hands the payment to PayPal.Demo, so the demo never breaks.
-  # The switch and its reason are recorded, so the timeline and the evidence
-  # say so. Capture is not retried this way: by then a real order exists.
+  # PayPal.Demo takes the payment and the switch is recorded. Capture isn't retried this
+  # way: by then a real order exists.
   defp fall_back(transaction, reason, opts, actions) do
     adapter = PayPal.adapter_name(opts)
 
@@ -220,15 +189,11 @@ defmodule AgentProof.Transactions do
   end
 
   @doc """
-  Whether the payment went through `AgentProof.PayPal.Demo` because the real
-  adapter failed (see `purchase/4`).
+  Whether PayPal.Demo took the payment because PayPal failed.
   """
   def paypal_fallback?(%Transaction{agent_actions: actions}),
     do: Enum.any?(actions, &(&1.action == :paypal_fallback))
 
-  @doc """
-  Records how a paid transaction was delivered.
-  """
   def record_fulfillment(%Transaction{status: :completed} = transaction, attrs) do
     transaction
     |> Transaction.fulfillment_changeset(%{fulfillment: attrs})

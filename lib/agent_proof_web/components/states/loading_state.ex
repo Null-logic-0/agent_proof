@@ -2,8 +2,7 @@ defmodule AgentProofWeb.LoadingState do
   use AgentProofWeb, :html
 
   @doc """
-  Skeleton rows shown while data loads, so the layout does not jump when the
-  real content arrives.
+  Placeholder rows shown while data loads.
   """
   attr :id, :string, required: true
   attr :rows, :integer, default: 5

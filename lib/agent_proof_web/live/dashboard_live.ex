@@ -16,10 +16,8 @@ defmodule AgentProofWeb.DashboardLive do
   alias AgentProofWeb.DemoMode
   alias Phoenix.LiveView.AsyncResult
 
-  # Cards per load: the first 3 render, scrolling to the bottom loads 3 more.
   @per_page 3
 
-  # Prefilled demo.
   @grant_defaults %{
     "agent_name" => "ShopBot",
     "max_amount" => "200",
@@ -63,11 +61,9 @@ defmodule AgentProofWeb.DashboardLive do
        loading_more: false,
        oldest_id: oldest_id(cards, socket.assigns.oldest_id)
      )
-     # Appends to the end of the list.
      |> stream(:authorizations, cards)}
   end
 
-  # The cards already shown stay; scrolling again (or Load more) retries.
   def handle_async(:load_more, {:exit, reason}, socket) do
     Logger.error("Could not load more authorizations: #{inspect(reason)}")
 
@@ -80,8 +76,7 @@ defmodule AgentProofWeb.DashboardLive do
   @impl true
   def handle_event("retry_load", _params, socket), do: {:noreply, load_authorizations(socket)}
 
-  # Sent by phx-viewport-bottom when the last card scrolls into view, and by
-  # the Load more button.
+  # Sent by phx-viewport-bottom and by the Load more button.
   def handle_event("load_more", _params, socket) do
     if socket.assigns.more? and not socket.assigns.loading_more do
       source = authorizations_source()
@@ -119,7 +114,6 @@ defmodule AgentProofWeb.DashboardLive do
     end
   end
 
-  # The button is only shown for unused agents
   def handle_event("delete_agent", %{"id" => id}, socket) do
     authorization = id |> Authorizations.get_authorization!() |> Authorizations.preload_activity()
 
@@ -180,8 +174,7 @@ defmodule AgentProofWeb.DashboardLive do
     {:noreply, assign(socket, editing: nil, edit_form: nil)}
   end
 
-  # Builds a complete disputed case and opens it. Only offered in Demo Mode,
-  # where it calls nothing external and takes about two seconds.
+  # Only allowed in Demo Mode, so it never calls an outside service.
   def handle_event("run_demo_scenario", _params, %{assigns: %{demo_mode: true}} = socket) do
     case DemoScenario.run(DemoMode.opts(true)) do
       {:ok, transaction} ->
@@ -201,19 +194,25 @@ defmodule AgentProofWeb.DashboardLive do
   def handle_event("run_demo_scenario", _params, socket), do: {:noreply, socket}
 
   def handle_event("shop", %{"authorization_id" => id, "shop" => %{"query" => query}}, socket) do
+    if String.trim(query) == "" do
+      {:noreply, put_flash(socket, :error, "Tell the agent what to look for first.")}
+    else
+      shop(socket, id, query)
+    end
+  end
+
+  defp shop(socket, id, query) do
     authorization = Authorizations.get_authorization!(id)
     result = ShoppingAgent.run(authorization, query, DemoMode.opts(socket.assigns.demo_mode))
     authorization = Authorizations.preload_activity(authorization)
 
     {:noreply,
      socket
-     # Keep what was searched for, instead of resetting the box to the default.
      |> stream_insert(:authorizations, card(authorization, query))
      |> put_shop_flash(result, query, authorization)}
   end
 
-  # The cards load in a task (only once the browser is connected), so the page
-  # and the grant form render right away while the list shows a skeleton.
+  # Cards load in a task, so the page renders at once with a loading skeleton.
   defp load_authorizations(socket) do
     source = authorizations_source()
 
@@ -223,13 +222,11 @@ defmodule AgentProofWeb.DashboardLive do
     |> start_async(:load_authorizations, fn -> load_cards(source, nil) end)
   end
 
-  # One page of cards older than `before_id`, plus whether more exist.
   defp load_cards(source, before_id) do
     {authorizations, more?} = source.list_authorizations_page(before_id, @per_page)
     {Enum.map(authorizations, &card/1), more?}
   end
 
-  # The id the next page continues from: the last (oldest) card loaded.
   defp oldest_id([], current), do: current
   defp oldest_id(cards, _current), do: List.last(cards).id
 
@@ -240,10 +237,8 @@ defmodule AgentProofWeb.DashboardLive do
   defp build_grant_form(params),
     do: params |> Authorizations.change_grant() |> to_form(as: :grant)
 
-  # A stream item: the authorization, what it has spent, and its own shop form.
-  # Stream items cannot read per-card assigns, so each card carries its form
-  # (and with it, the last search) inside the item.
-  defp card(authorization, query \\ "headphones") do
+  # Stream items can't read assigns, so each card carries its own shop form (empty at first).
+  defp card(authorization, query \\ "") do
     %{
       id: authorization.id,
       authorization: authorization,

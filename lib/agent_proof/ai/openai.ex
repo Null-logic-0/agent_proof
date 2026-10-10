@@ -1,22 +1,6 @@
 defmodule AgentProof.AI.OpenAI do
   @moduledoc """
-  Optional AI provider for OpenAI, using the Responses API with Structured
-  Outputs in strict JSON Schema mode.
-
-  Strict mode requires every object in the schema to list all of its
-  properties in `required` and to set `additionalProperties: false`.
-
-  Configuration (`config :agent_proof, AgentProof.AI.OpenAI`), present only
-  when `OPENAI_API_KEY` is set:
-
-    * `:base_url` - "https://api.openai.com"
-    * `:api_key` - the API key
-    * `:model` - e.g. "gpt-6-luna"
-    * `:req_options` - extra `Req` options, applied last (tests use `Req.Test`)
-
-  Errors are normalized to `{:openai, status, code}`, `{:transport, reason}`,
-  `{:refusal, message}`, `{:incomplete, reason}`, or `:invalid_json`, and never
-  contain the API key.
+  Optional AI provider for OpenAI.
   """
 
   @behaviour AgentProof.AI.Provider
