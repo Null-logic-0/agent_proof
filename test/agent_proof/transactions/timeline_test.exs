@@ -92,10 +92,25 @@ defmodule AgentProof.Transactions.TimelineTest do
   end
 
   test "a failed payment shows as an error" do
-    capture_log(fn -> buy_headphones(adapter: TestClient, fail: :create) end)
+    capture_log(fn -> buy_headphones(adapter: TestClient, fail: :create, fallback: false) end)
     [failed] = Transactions.list_transactions()
 
     assert %{title: "Payment failed", status: :error} = List.last(timeline(failed.id))
+  end
+
+  test "a PayPal fallback shows as a warning, followed by the demo payment" do
+    capture_log(fn -> buy_headphones(adapter: TestClient, fail: :create) end)
+    [paid] = Transactions.list_transactions()
+
+    assert [
+             {:system, "Budget check approved by AgentProof", :ok},
+             {:system, "PayPal test failed, so the demo adapter took over", :warning},
+             {:paypal, "PayPal order created", :ok},
+             {:paypal, "Payment captured", :ok}
+           ] = paid.id |> timeline() |> Enum.drop(3) |> Enum.map(&{&1.actor, &1.title, &1.status})
+
+    assert Enum.find(timeline(paid.id), &(&1.status == :warning)).details ==
+             "Reason: :sandbox_unavailable"
   end
 
   test "editing the authorization later does not change the story" do

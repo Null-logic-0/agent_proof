@@ -17,9 +17,13 @@ defmodule AgentProofWeb.Router do
   scope "/", AgentProofWeb do
     pipe_through :browser
 
-    live "/", DashboardLive, :home
-    live "/history", HistoryLive, :transaction_history
-    live "/transactions/:id", CaseLive, :show
+    post "/demo-mode", DemoModeController, :update
+
+    live_session :default, on_mount: AgentProofWeb.DemoMode do
+      live "/", DashboardLive, :home
+      live "/history", HistoryLive, :transaction_history
+      live "/transactions/:id", CaseLive, :show
+    end
   end
 
   # Other scopes may use custom stacks.

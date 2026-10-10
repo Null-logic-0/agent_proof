@@ -5,6 +5,9 @@ defmodule AgentProofWeb.Layouts do
   """
   use AgentProofWeb, :html
 
+  import AgentProofWeb.DemoBanner
+  import AgentProofWeb.DemoModeSwitch
+
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
@@ -31,13 +34,18 @@ defmodule AgentProofWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
 
+  attr :demo_mode, :boolean, default: false, doc: "set by AgentProofWeb.DemoMode"
+  attr :current_path, :string, default: "/", doc: "where the Demo Mode switch returns to"
+
   slot :inner_block, required: true
 
   def app(assigns) do
+    demo_opts = AgentProofWeb.DemoMode.opts(assigns.demo_mode)
+
     assigns =
       assign(assigns,
-        paypal_adapter: AgentProof.PayPal.adapter_name(),
-        ai_provider: AgentProof.AI.provider_name()
+        paypal_adapter: AgentProof.PayPal.adapter_name(demo_opts),
+        ai_provider: AgentProof.AI.provider_name(demo_opts)
       )
 
     ~H"""
@@ -51,12 +59,26 @@ defmodule AgentProofWeb.Layouts do
         </.link>
       </div>
       <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+        <.demo_mode_switch
+          id="demo-mode-toggle"
+          demo_mode={@demo_mode}
+          return_to={@current_path}
+          aria-pressed={to_string(@demo_mode)}
+          class={["btn btn-sm gap-1.5", if(@demo_mode, do: "btn-warning", else: "btn-ghost")]}
+        >
+          <.icon name="hero-beaker" class="size-4" /> Demo Mode
+          <span class={["badge badge-xs", if(@demo_mode, do: "badge-neutral", else: "badge-ghost")]}>
+            {if @demo_mode, do: "on", else: "off"}
+          </span>
+        </.demo_mode_switch>
         <.mode_badge id="paypal-mode" label="PayPal" value={@paypal_adapter} />
         <.mode_badge id="ai-provider" label="AI" value={@ai_provider} />
 
         <.theme_toggle />
       </div>
     </header>
+
+    <.demo_banner :if={@demo_mode} return_to={@current_path} />
 
     <main class="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <div class="mx-auto max-w-7xl">

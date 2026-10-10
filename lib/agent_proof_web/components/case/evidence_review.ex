@@ -36,7 +36,10 @@ defmodule AgentProofWeb.EvidenceReview do
                 id="evidence-provider"
                 class={[
                   "badge badge-soft badge-sm",
-                  if(@evidence.ai_provider == "demo", do: "badge-warning", else: "badge-success")
+                  if(String.starts_with?(@evidence.ai_provider, "demo"),
+                    do: "badge-warning",
+                    else: "badge-success"
+                  )
                 ]}
               >
                 {@evidence.ai_provider}

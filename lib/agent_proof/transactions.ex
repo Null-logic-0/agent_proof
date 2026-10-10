@@ -88,6 +88,8 @@ defmodule AgentProof.Transactions do
   Options:
 
     * `:adapter` - the PayPal adapter (see `AgentProof.PayPal`)
+    * `:fallback` - when a real adapter can't create the order, pay through
+      `AgentProof.PayPal.Demo` instead (default `true`)
   """
   def purchase(authorization, product, agent_actions \\ [], opts \\ []) do
     with {:ok, agent_actions} <- AgentAction.from_agent(agent_actions),
@@ -131,7 +133,7 @@ defmodule AgentProof.Transactions do
     end)
   end
 
-  defp pay(transaction, opts) do
+  defp pay(transaction, opts, actions \\ []) do
     order = %{
       amount: transaction.amount,
       currency: transaction.currency,
@@ -142,12 +144,37 @@ defmodule AgentProof.Transactions do
     case PayPal.create_order(order, opts) do
       {:ok, %{order_id: order_id}} ->
         created = AgentAction.system(:create_paypal_order, %{"order_id" => order_id})
-        capture(transaction, order_id, [created], opts)
+        capture(transaction, order_id, actions ++ [created], opts)
 
       {:error, reason} ->
-        fail(transaction, nil, [], :create_order, reason)
+        if fallback_allowed?(opts) do
+          fall_back(transaction, reason, opts, actions)
+        else
+          fail(transaction, nil, actions, :create_order, reason)
+        end
     end
   end
+
+  # A real adapter that can't create the order (unreachable, bad credentials,
+  # an API error) hands the payment to PayPal.Demo, so the demo never breaks.
+  # The switch and its reason are recorded, so the timeline and the evidence
+  # say so. Capture is not retried this way: by then a real order exists.
+  defp fall_back(transaction, reason, opts, actions) do
+    adapter = PayPal.adapter_name(opts)
+
+    Logger.warning(
+      "PayPal create_order failed for transaction #{transaction.id} with #{adapter}, " <>
+        "paying through PayPal.Demo: #{inspect(reason)}"
+    )
+
+    switched =
+      AgentAction.system(:paypal_fallback, %{"adapter" => adapter, "reason" => inspect(reason)})
+
+    pay(transaction, Keyword.put(opts, :adapter, PayPal.Demo), actions ++ [switched])
+  end
+
+  defp fallback_allowed?(opts),
+    do: Keyword.get(opts, :fallback, true) and PayPal.adapter(opts) != PayPal.Demo
 
   defp capture(transaction, order_id, actions, opts) do
     case PayPal.capture_order(order_id, opts) do
@@ -191,6 +218,13 @@ defmodule AgentProof.Transactions do
     |> Ecto.Changeset.put_embed(:agent_actions, transaction.agent_actions ++ new_actions)
     |> Repo.update()
   end
+
+  @doc """
+  Whether the payment went through `AgentProof.PayPal.Demo` because the real
+  adapter failed (see `purchase/4`).
+  """
+  def paypal_fallback?(%Transaction{agent_actions: actions}),
+    do: Enum.any?(actions, &(&1.action == :paypal_fallback))
 
   @doc """
   Records how a paid transaction was delivered.

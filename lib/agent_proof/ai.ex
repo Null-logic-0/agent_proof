@@ -37,7 +37,10 @@ defmodule AgentProof.AI do
 
   def provider_name(opts \\ []), do: provider(opts).name()
 
-  defp provider(opts) do
+  @doc """
+  The provider module these `opts` select.
+  """
+  def provider(opts \\ []) do
     Keyword.get_lazy(opts, :provider, fn ->
       Application.fetch_env!(:agent_proof, :ai_provider)
     end)

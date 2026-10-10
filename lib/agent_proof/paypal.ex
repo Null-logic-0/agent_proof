@@ -17,7 +17,10 @@ defmodule AgentProof.PayPal do
 
   def adapter_name(opts \\ []), do: adapter(opts).name()
 
-  defp adapter(opts) do
+  @doc """
+  The adapter module these `opts` select.
+  """
+  def adapter(opts \\ []) do
     Keyword.get_lazy(opts, :adapter, fn ->
       Application.fetch_env!(:agent_proof, :paypal_adapter)
     end)

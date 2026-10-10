@@ -10,7 +10,8 @@ defmodule AgentProof.Transactions.AgentAction do
         :budget_check,
         :create_paypal_order,
         :capture_payment,
-        :payment_failed
+        :payment_failed,
+        :paypal_fallback
       ]
 
     field :actor, Ecto.Enum, values: [:agent, :system]

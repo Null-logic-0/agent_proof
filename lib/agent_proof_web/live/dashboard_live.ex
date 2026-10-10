@@ -4,14 +4,16 @@ defmodule AgentProofWeb.DashboardLive do
   require Logger
 
   import AgentProofWeb.AuthorizationCard
+  import AgentProofWeb.DemoScenarioCard
   import AgentProofWeb.EditAgentModal
   import AgentProofWeb.EmptyState
   import AgentProofWeb.ErrorState
   import AgentProofWeb.GrantForm
   import AgentProofWeb.LoadingState
 
-  alias AgentProof.{Authorizations, Transactions}
+  alias AgentProof.{Authorizations, DemoScenario, Transactions}
   alias AgentProof.Agents.ShoppingAgent
+  alias AgentProofWeb.DemoMode
   alias Phoenix.LiveView.AsyncResult
 
   # Cards per load: the first 3 render, scrolling to the bottom loads 3 more.
@@ -178,9 +180,29 @@ defmodule AgentProofWeb.DashboardLive do
     {:noreply, assign(socket, editing: nil, edit_form: nil)}
   end
 
+  # Builds a complete disputed case and opens it. Only offered in Demo Mode,
+  # where it calls nothing external and takes about two seconds.
+  def handle_event("run_demo_scenario", _params, %{assigns: %{demo_mode: true}} = socket) do
+    case DemoScenario.run(DemoMode.opts(true)) do
+      {:ok, transaction} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Demo case ready. Review the evidence, then approve and submit it.")
+         |> push_navigate(to: ~p"/transactions/#{transaction.id}")}
+
+      {:error, reason} ->
+        Logger.error("Demo scenario failed: #{inspect(reason, limit: 10)}")
+
+        {:noreply,
+         put_flash(socket, :error, "The demo scenario didn't finish. Please try again.")}
+    end
+  end
+
+  def handle_event("run_demo_scenario", _params, socket), do: {:noreply, socket}
+
   def handle_event("shop", %{"authorization_id" => id, "shop" => %{"query" => query}}, socket) do
     authorization = Authorizations.get_authorization!(id)
-    result = ShoppingAgent.run(authorization, query)
+    result = ShoppingAgent.run(authorization, query, DemoMode.opts(socket.assigns.demo_mode))
     authorization = Authorizations.preload_activity(authorization)
 
     {:noreply,
@@ -235,7 +257,11 @@ defmodule AgentProofWeb.DashboardLive do
       socket,
       :info,
       "#{authorization.agent.name} bought #{transaction.product_name} for " <>
-        "#{money(transaction.amount)} #{transaction.currency}."
+        "#{money(transaction.amount)} #{transaction.currency}." <>
+        if(Transactions.paypal_fallback?(transaction),
+          do: " PayPal was unavailable, so the demo adapter took the payment.",
+          else: ""
+        )
     )
   end
 

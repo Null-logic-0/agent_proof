@@ -3,12 +3,17 @@ defmodule AgentProof.Evidence do
   Evidence packages generated for disputes.
   """
 
+  require Logger
+
   alias AgentProof.{AI, Disputes, PayPal, Repo, Transactions}
   alias AgentProof.Disputes.Dispute
   alias AgentProof.PayPal.EvidencePayload
   alias AgentProof.Evidence.Package
 
   @attempts 2
+
+  # The `ai_provider` of evidence AI.Demo wrote because the real AI failed.
+  @fallback_provider "demo-fallback"
 
   def get_package_by_dispute(%Dispute{id: dispute_id}) do
     Repo.get_by(Package, dispute_id: dispute_id)
@@ -21,8 +26,11 @@ defmodule AgentProof.Evidence do
        and a transaction would hold a database connection the whole time.
     2. The answer is validated for shape and grounding. An invalid answer is
        retried once, with the problems fed back to the model. Provider errors
-       (unreachable, refusal, quota) are returned at once: retrying won't help.
-    3. The package and the dispute's `:evidence_ready` status are saved
+       (unreachable, refusal, quota) are not retried: retrying won't help.
+    3. If the real AI still failed, `AgentProof.AI.Demo` writes the evidence
+       from the same facts, saved as `ai_provider: "demo-fallback"`. Pass
+       `fallback: false` to get the error instead.
+    4. The package and the dispute's `:evidence_ready` status are saved
        atomically.
 
   Regenerating replaces the package until the dispute is submitted. `opts`
@@ -33,10 +41,15 @@ defmodule AgentProof.Evidence do
 
     with :ok <- ensure_not_submitted(dispute),
          facts = Transactions.reconstruct(dispute.transaction, dispute),
-         {:ok, changeset} <- attempt(dispute, facts, opts, nil, @attempts) do
+         {:ok, changeset} <- investigate(dispute, facts, opts) do
       save(changeset, dispute)
     end
   end
+
+  @doc """
+  Whether AI.Demo wrote this evidence because the real AI failed.
+  """
+  def fallback?(%Package{ai_provider: ai_provider}), do: ai_provider == @fallback_provider
 
   @doc """
   Records the merchant's approval of an evidence package. Only approved
@@ -115,6 +128,37 @@ defmodule AgentProof.Evidence do
 
   defp ensure_not_submitted(%Dispute{status: :submitted}), do: {:error, :already_submitted}
   defp ensure_not_submitted(%Dispute{}), do: :ok
+
+  defp investigate(dispute, facts, opts) do
+    case attempt(dispute, facts, opts, nil, @attempts) do
+      {:error, reason} = error ->
+        if fallback_allowed?(opts), do: fall_back(dispute, facts, opts, reason), else: error
+
+      ok ->
+        ok
+    end
+  end
+
+  # The real AI failed (unreachable, refusing, or invalid twice), so AI.Demo
+  # writes the evidence from the same facts, labelled so nobody mistakes it
+  # for a model's work. If even that fails, the original error is returned.
+  defp fall_back(dispute, facts, opts, reason) do
+    Logger.warning(
+      "AI investigation failed with #{AI.provider_name(opts)}, writing the evidence " <>
+        "with AI.Demo: #{inspect(reason, limit: 10)}"
+    )
+
+    case attempt(dispute, facts, Keyword.put(opts, :provider, AI.Demo), nil, 1) do
+      {:ok, changeset} ->
+        {:ok, Ecto.Changeset.put_change(changeset, :ai_provider, @fallback_provider)}
+
+      {:error, _demo_reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp fallback_allowed?(opts),
+    do: Keyword.get(opts, :fallback, true) and AI.provider(opts) != AI.Demo
 
   defp attempt(dispute, facts, opts, feedback, attempts_left) do
     ai_opts = if feedback, do: Keyword.put(opts, :feedback, feedback), else: opts

@@ -91,6 +91,15 @@ defmodule AgentProof.Transactions.Timeline do
     )
   end
 
+  defp action_event(%{action: :paypal_fallback, details: d} = action) do
+    event("action-#{action.id}", action.at, :system,
+      title: "PayPal #{d["adapter"]} failed, so the demo adapter took over",
+      details: d["reason"] && "Reason: #{d["reason"]}",
+      status: :warning,
+      simulated?: true
+    )
+  end
+
   defp action_event(action) do
     event("action-#{action.id}", action.at, action.actor,
       title: action.action |> to_string() |> String.replace("_", " ") |> String.capitalize()

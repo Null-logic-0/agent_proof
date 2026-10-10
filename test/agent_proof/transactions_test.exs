@@ -212,7 +212,8 @@ defmodule AgentProof.TransactionsTest do
         capture_log(fn ->
           assert Transactions.purchase(authorization, product("189.99"), [],
                    adapter: TestClient,
-                   fail: :create
+                   fail: :create,
+                   fallback: false
                  ) == {:error, :payment_failed}
         end)
 
@@ -226,6 +227,40 @@ defmodule AgentProof.TransactionsTest do
 
       assert Decimal.equal?(Transactions.spent_amount(authorization), 0)
       assert {:ok, _} = Transactions.purchase(authorization, product("189.99"))
+    end
+
+    test "a failed order creation falls back to PayPal.Demo and records why",
+         %{authorization: authorization} do
+      log =
+        capture_log(fn ->
+          assert {:ok, %Transaction{status: :completed} = transaction} =
+                   Transactions.purchase(authorization, product("189.99"), [],
+                     adapter: TestClient,
+                     fail: :create
+                   )
+
+          assert transaction.paypal_order_id == "DEMO-ORDER-transaction-#{transaction.id}"
+          assert Transactions.paypal_fallback?(transaction)
+
+          assert [:budget_check, :paypal_fallback, :create_paypal_order, :capture_payment] =
+                   Enum.map(transaction.agent_actions, & &1.action)
+
+          assert %AgentAction{
+                   actor: :system,
+                   details: %{"adapter" => "test", "reason" => ":sandbox_unavailable"}
+                 } = Enum.at(transaction.agent_actions, 1)
+
+          assert List.last(transaction.agent_actions).details["simulated"] == true
+        end)
+
+      assert log =~ "paying through PayPal.Demo"
+    end
+
+    test "a payment made through the configured adapter is not a fallback",
+         %{authorization: authorization} do
+      {:ok, transaction} = Transactions.purchase(authorization, product("189.99"))
+
+      refute Transactions.paypal_fallback?(transaction)
     end
 
     test "a failed capture keeps the PayPal order id for the record",

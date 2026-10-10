@@ -2,6 +2,7 @@ defmodule AgentProof.Evidence.GenerateForDisputeTest do
   use AgentProof.DataCase, async: true
 
   import AgentProof.Fixtures
+  import ExUnit.CaptureLog
 
   alias AgentProof.{AI, Disputes, Evidence, Transactions}
   alias AgentProof.AI.TestProvider
@@ -42,8 +43,13 @@ defmodule AgentProof.Evidence.GenerateForDisputeTest do
     end
   end
 
+  # Without the fallback to AI.Demo, so the provider's own errors come back.
   defp generate(dispute, replies) do
-    Evidence.generate_for_dispute(dispute.id, provider: TestProvider, reply: scripted(replies))
+    Evidence.generate_for_dispute(dispute.id,
+      provider: TestProvider,
+      reply: scripted(replies),
+      fallback: false
+    )
   end
 
   describe "Package.ai_changeset/3" do
@@ -196,6 +202,48 @@ defmodule AgentProof.Evidence.GenerateForDisputeTest do
       dispute |> Ecto.Changeset.change(status: :submitted) |> Repo.update!()
 
       assert Evidence.generate_for_dispute(dispute.id) == {:error, :already_submitted}
+    end
+  end
+
+  describe "falling back to AI.Demo" do
+    defp generate_with_fallback(dispute, reply) do
+      Evidence.generate_for_dispute(dispute.id, provider: TestProvider, reply: reply)
+    end
+
+    test "an unreachable AI gets demo evidence, labelled demo-fallback", %{dispute: dispute} do
+      log =
+        capture_log(fn ->
+          assert {:ok, %Package{ai_provider: "demo-fallback"} = package} =
+                   generate_with_fallback(dispute, {:error, {:transport, :econnrefused}})
+
+          assert Evidence.fallback?(package)
+          assert package.ai_explanation =~ "No language model was used"
+          assert Disputes.get_dispute!(dispute.id).status == :evidence_ready
+        end)
+
+      assert log =~ "AI investigation failed with test"
+      assert log =~ "econnrefused"
+    end
+
+    test "so does an AI whose answers fail validation twice", %{dispute: dispute} do
+      capture_log(fn ->
+        assert {:ok, %Package{ai_provider: "demo-fallback"}} =
+                 generate_with_fallback(dispute, {:ok, ungrounded_answer(dispute)})
+      end)
+    end
+
+    test "evidence the real AI wrote is not a fallback", %{dispute: dispute} do
+      {:ok, package} = generate_with_fallback(dispute, {:ok, valid_answer(dispute)})
+
+      assert package.ai_provider == "test"
+      refute Evidence.fallback?(package)
+    end
+
+    test "a submitted dispute is refused, not handed to the fallback", %{dispute: dispute} do
+      dispute |> Ecto.Changeset.change(status: :submitted) |> Repo.update!()
+
+      assert generate_with_fallback(dispute, {:error, {:transport, :econnrefused}}) ==
+               {:error, :already_submitted}
     end
   end
 end

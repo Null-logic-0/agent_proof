@@ -12,13 +12,14 @@ defmodule AgentProofWeb.CaseLive do
   import AgentProofWeb.Timeline
 
   alias AgentProof.{AI, Disputes, Evidence, Transactions}
+  alias AgentProofWeb.DemoMode
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     {:ok,
      socket
      |> assign(:dispute_form, to_form(%{"reason" => "unauthorized"}, as: :dispute))
-     |> assign(:ai_provider, AI.provider_name())
+     |> assign(:ai_provider, AI.provider_name(DemoMode.opts(socket.assigns.demo_mode)))
      |> assign(investigating: false, investigation_error: nil)
      |> assign(submission: nil, submitting: false, submission_error: nil)
      |> load_case(id)}
@@ -67,11 +68,12 @@ defmodule AgentProofWeb.CaseLive do
 
     if transaction.dispute && !investigating do
       dispute_id = transaction.dispute.id
+      opts = DemoMode.opts(socket.assigns.demo_mode)
 
       {:noreply,
        socket
        |> assign(investigating: true, investigation_error: nil)
-       |> start_async(:investigate, fn -> Evidence.generate_for_dispute(dispute_id) end)}
+       |> start_async(:investigate, fn -> Evidence.generate_for_dispute(dispute_id, opts) end)}
     else
       {:noreply, socket}
     end
@@ -108,7 +110,10 @@ defmodule AgentProofWeb.CaseLive do
     {:noreply, assign(socket, submission: nil, submission_error: nil)}
   end
 
-  # A real PayPal call can take a moment, so it runs in a task.
+  # A real PayPal call can take a moment, so it runs in a task. Demo Mode
+  # doesn't apply here: the dispute decides. Disputes created in AgentProof
+  # always go to PayPal.Demo, and a real dispute is never marked submitted
+  # unless PayPal received the evidence.
   def handle_event("submit_evidence", _params, socket) do
     package = socket.assigns.transaction.dispute.evidence
 
@@ -153,11 +158,18 @@ defmodule AgentProofWeb.CaseLive do
   end
 
   def handle_async(:investigate, {:ok, {:ok, evidence}}, socket) do
+    message =
+      if Evidence.fallback?(evidence),
+        do:
+          "#{socket.assigns.ai_provider} wasn't available, so the demo adapter wrote " <>
+            "this evidence from the same facts.",
+        else: "Evidence ready, written by #{evidence.ai_provider}."
+
     {:noreply,
      socket
      |> assign(:investigating, false)
      |> reload()
-     |> put_flash(:info, "Evidence ready, written by #{evidence.ai_provider}.")}
+     |> put_flash(:info, message)}
   end
 
   def handle_async(:investigate, {:ok, {:error, reason}}, socket) do

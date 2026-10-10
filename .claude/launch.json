@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "phoenix-ollama-down",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["OLLAMA_URL=http://localhost:9", "mix", "phx.server"],
+      "port": 4000
+    }
+  ]
+}
