@@ -22,42 +22,7 @@
     </div>
   </div>
 
-  <.form
-    for={@filters}
-    id="history-filters"
-    phx-change="filter"
-    phx-submit="filter"
-    class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start"
-  >
-    <div class="min-w-0 flex-1">
-      <.input
-        field={@filters[:q]}
-        id="history-search"
-        type="search"
-        placeholder="Search by product, agent, or PayPal order"
-        autocomplete="off"
-        phx-debounce="300"
-      />
-    </div>
-    <div class="sm:w-44">
-      <.input
-        field={@filters[:status]}
-        id="history-status"
-        type="select"
-        options={@status_options}
-        aria-label="Filter by status"
-      />
-    </div>
-    <div class="sm:w-60">
-      <.input
-        field={@filters[:sort]}
-        id="history-sort"
-        type="select"
-        options={@sort_options}
-        aria-label="Sort transactions"
-      />
-    </div>
-  </.form>
+  <.history_filters form={@filters} />
 
   <.async_result :let={meta} assign={@page}>
     <:loading>

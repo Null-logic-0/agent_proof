@@ -3,32 +3,19 @@ defmodule AgentProofWeb.HistoryLive do
 
   require Logger
 
-  import AgentProofWeb.EmptyState
-  import AgentProofWeb.ErrorState
-  import AgentProofWeb.LoadingState
-  import AgentProofWeb.Pagination
-  import AgentProofWeb.TransactionTable
+  import AgentProofWeb.{
+    EmptyState,
+    ErrorState,
+    HistoryFilters,
+    LoadingState,
+    Pagination,
+    TransactionTable
+  }
 
   alias AgentProof.Transactions
   alias Phoenix.LiveView.AsyncResult
 
   @page_size "20"
-
-  @status_options [
-    {"All statuses", ""},
-    {"Completed", "completed"},
-    {"Created", "created"},
-    {"Failed", "failed"}
-  ]
-
-  @sort_options [
-    {"Newest first", "newest"},
-    {"Oldest first", "oldest"},
-    {"Amount: high to low", "amount_desc"},
-    {"Amount: low to high", "amount_asc"},
-    {"Status: completed first", "status_asc"},
-    {"Status: failed first", "status_desc"}
-  ]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -36,7 +23,6 @@ defmodule AgentProofWeb.HistoryLive do
      socket
      |> assign(:page_title, "Transaction History")
      |> assign(:page, AsyncResult.loading())
-     |> assign(status_options: @status_options, sort_options: @sort_options)
      |> stream(:transactions, [])}
   end
 

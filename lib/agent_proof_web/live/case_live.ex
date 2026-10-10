@@ -3,13 +3,15 @@ defmodule AgentProofWeb.CaseLive do
 
   require Logger
 
-  import AgentProofWeb.CaseActions
-  import AgentProofWeb.CaseHeader
-  import AgentProofWeb.ErrorState
-  import AgentProofWeb.EvidenceReview
-  import AgentProofWeb.LoadingState
-  import AgentProofWeb.SubmissionPanel
-  import AgentProofWeb.Timeline
+  import AgentProofWeb.{
+    CaseActions,
+    CaseHeader,
+    ErrorState,
+    EvidenceReview,
+    LoadingState,
+    SubmissionPanel,
+    Timeline
+  }
 
   alias AgentProof.{AI, Disputes, Evidence, Transactions}
   alias AgentProofWeb.DemoMode

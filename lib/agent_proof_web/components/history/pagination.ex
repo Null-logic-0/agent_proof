@@ -22,7 +22,7 @@ defmodule AgentProofWeb.Pagination do
         patch={@page_path.(@meta.page - 1)}
         class="btn btn-sm btn-outline"
       >
-        « Prev
+        <.icon name="hero-chevron-double-left" class="size-4" /> Prev
       </.link>
 
       <%!-- //1 keeps the range ascending; a plain 1..0 would count down. --%>
@@ -42,7 +42,7 @@ defmodule AgentProofWeb.Pagination do
         patch={@page_path.(@meta.page + 1)}
         class="btn btn-sm btn-outline"
       >
-        Next »
+        Next <.icon name="hero-chevron-double-right" class="size-4" />
       </.link>
     </nav>
     """

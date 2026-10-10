@@ -3,13 +3,15 @@ defmodule AgentProofWeb.DashboardLive do
 
   require Logger
 
-  import AgentProofWeb.AuthorizationCard
-  import AgentProofWeb.DemoScenarioCard
-  import AgentProofWeb.EditAgentModal
-  import AgentProofWeb.EmptyState
-  import AgentProofWeb.ErrorState
-  import AgentProofWeb.GrantForm
-  import AgentProofWeb.LoadingState
+  import AgentProofWeb.{
+    AuthorizationCard,
+    DemoScenarioCard,
+    EditAgentModal,
+    EmptyState,
+    ErrorState,
+    GrantForm,
+    LoadingState
+  }
 
   alias AgentProof.{Authorizations, DemoScenario, Transactions}
   alias AgentProof.Agents.ShoppingAgent
